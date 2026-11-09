@@ -1,0 +1,56 @@
+# Hooks locais (pre-commit install) e verificação no CI.
+# Executar manualmente: uv run pre-commit run --all-files
+repos:
+  # Verificações gerais de arquivos.
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      # Bloqueia arquivos acima de 1 MB, inclusive no CI; o uv.lock cresce com o projeto.
+      - id: check-added-large-files
+        args: [--maxkb=1024, --enforce-all]
+        exclude: ^uv\.lock$
+      # O Colab salva .ipynb sem quebra de linha final.
+      - id: end-of-file-fixer
+        exclude: \.ipynb$
+      - id: trailing-whitespace
+      - id: check-yaml
+      - id: check-toml
+      - id: check-json
+
+  # Remove saídas dos notebooks; apenas o 00_overview mantém saídas.
+  - repo: https://github.com/kynan/nbstripout
+    rev: 0.9.1
+    hooks:
+      - id: nbstripout
+        exclude: ^notebooks/00_overview\.ipynb$
+        # Remove metadados de célula do Colab.
+        # Os metadados do notebook (metadata.colab e metadata.accelerator) são preservados.
+        args:
+          - --extra-keys
+          - cell.metadata.colab cell.metadata.executionInfo cell.metadata.outputId
+
+  # Lint e formatação; a versão acompanha o ruff do pyproject.toml.
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.17.4
+    hooks:
+      - id: ruff-check
+        args: [--fix]
+      - id: ruff-format
+
+  # Mantém o uv.lock e o requirements.txt sincronizados com o pyproject.toml.
+  - repo: https://github.com/astral-sh/uv-pre-commit
+    rev: 0.13.7
+    hooks:
+      - id: uv-lock
+      # Os args substituem os padrões do hook; por isso repetem --frozen, --output-file e --quiet.
+      # O requirements.txt é só referência de versões, sem torch; não usar no Colab.
+      - id: uv-export
+        args:
+          - --frozen
+          - --no-hashes
+          - --no-dev
+          - --no-emit-project
+          - --no-emit-package
+          - torch
+          - --output-file=requirements.txt
+          - --quiet

@@ -1,0 +1,43 @@
+# O pre-commit no CI detecta notebooks salvos pelo Colab com saídas e requirements.txt desatualizado.
+# Motivo: o Colab não executa os hooks locais.
+# O nome do job (lint-and-test) é o status check exigido em .github/rulesets/protect-main.json.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+# Cancela a execução anterior da mesma ref.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint-and-test:
+    name: lint-and-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Obter o código
+        uses: actions/checkout@v7
+
+      - name: Instalar o uv
+        uses: astral-sh/setup-uv@v10.3.3
+        with:
+          enable-cache: true
+
+      - name: Instalar as dependências do lock
+        run: uv sync --locked
+
+      - name: Baixar o punkt_tab do NLTK
+        run: uv run python -m nltk.downloader -q punkt_tab
+
+      - name: Executar o pre-commit
+        run: uv run pre-commit run --all-files --show-diff-on-failure
+
+      - name: Executar os testes
+        run: uv run pytest
