@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+
+# Ambientes
+.venv/
+.env
+
+# Ferramentas
+.pytest_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+
+# Artefatos grandes (ficam no Google Drive)
+artifacts/
+data/
+models/
+*.npy
+*.npz
+*.safetensors
+*.bin
+*.pt
+
+# Editores e sistema
+.vscode/
+.idea/
+.DS_Store

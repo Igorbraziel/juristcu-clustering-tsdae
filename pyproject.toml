@@ -1,0 +1,77 @@
+[project]
+name = "juristcu"
+version = "0.1.0"
+description = "Agrupamento temático da jurisprudência do TCU com representações aprendidas sem rótulos."
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.11"
+# Somente limites inferiores, sempre abaixo das versões do Colab.
+# Assim, a instalação no Colab preserva o torch e o numpy do ambiente.
+dependencies = [
+    "datasets>=3.0",
+    "matplotlib>=3.7",
+    "nltk>=3.9",
+    "numpy>=1.26",
+    "pandas>=2.0",
+    "scikit-learn>=1.6",
+    "sentence-transformers[train]>=5.6",
+    # Declarado diretamente para que o índice CPU abaixo seja aplicado.
+    "torch>=2.4",
+    "transformers>=4.41",
+    "umap-learn>=0.5",
+]
+
+[dependency-groups]
+dev = [
+    "ipykernel>=6.29",
+    "nbformat>=5.10",
+    "pre-commit>=4.0",
+    "pytest>=8.0",
+    "ruff==0.17.4",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/juristcu"]
+
+[tool.uv]
+required-version = ">=0.13"
+# Espelha as versões do Colab de novembro de 2026. Revisar quando o Colab for atualizado.
+constraint-dependencies = ["numpy<2.5", "sentence-transformers<6"]
+
+# Torch sem CUDA no ambiente local e no CI.
+# O Colab ignora estas seções com --no-sources.
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.uv.sources]
+torch = [{ index = "pytorch-cpu" }]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+# O protocolo congelado não é reformatado.
+extend-exclude = ["docs/protocol.md"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM", "N", "D"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.pep8-naming]
+extend-ignore-names = ["X", "X_*"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["D"]
+"*.ipynb" = ["D"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+xfail_strict = true
