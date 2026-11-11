@@ -75,3 +75,51 @@ def test_summarize_distribution_on_balanced_labels() -> None:
     assert summary["categories_min_size"] == 2
     assert summary["share_min_size"] == pytest.approx(40 / 45)
     assert 0 < summary["normalized_entropy"] < 1
+
+
+def test_clean_text_removes_inline_tags_without_spaces() -> None:
+    raw = "o <i>caput</i>, conforme o <span>Acórdão 1.131/2009</span> ( Plenário ) ."
+    assert data.clean_text(raw) == "o caput, conforme o Acórdão 1.131/2009 (Plenário)."
+
+
+def test_clean_text_separates_block_tags_and_omissions() -> None:
+    raw = "<p>[...] Primeira frase.</p><p>Segunda frase.</p>"
+    assert data.clean_text(raw) == "Primeira frase. Segunda frase."
+
+
+def test_split_paragraphs_uses_block_tags() -> None:
+    raw = "<p>Voto:</p><p>O relator <b>examina</b> o caso.</p><br>Outro parágrafo."
+    assert data.split_paragraphs(raw) == ["Voto:", "O relator examina o caso.", "Outro parágrafo."]
+
+
+def test_split_paragraphs_removes_glued_paragraph_numbers() -> None:
+    raw = "[...] 8.Este Tribunal decide. A proposta não tem estudos técnicos: 20.Quando se disputa."
+    assert data.split_paragraphs(raw) == [
+        "Este Tribunal decide. A proposta não tem estudos técnicos:",
+        "Quando se disputa.",
+    ]
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Conforme a Lei 8.666/1993, o órgão decide.",
+        "Ver o Acórdão 1.131/2009 - Plenário.",
+        "Acórdão: 9.2. determinar à unidade a correção.",
+        "Valor de R$ 1.500.000,00 pago a maior.",
+    ],
+)
+def test_split_paragraphs_keeps_numbers_that_are_not_paragraph_labels(text: str) -> None:
+    assert data.split_paragraphs(text) == [text]
+
+
+def test_split_paragraphs_handles_missing_text() -> None:
+    assert data.split_paragraphs(None) == []
+    assert data.split_paragraphs(float("nan")) == []
+
+
+def test_tag_frequency_counts_opening_tags() -> None:
+    texts = pd.Series(["<p>a</p><p><b>b</b></p>", None, "<BR>c"])
+    table = data.tag_frequency(texts)
+    assert table.set_index("tag")["count"].to_dict() == {"p": 2, "b": 1, "br": 1}
+    assert table.set_index("tag")["block"].to_dict() == {"p": True, "b": False, "br": True}

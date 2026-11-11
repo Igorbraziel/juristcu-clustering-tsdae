@@ -14,15 +14,22 @@ from juristcu.config import (
     DATA_FILE,
     DATASET_ID,
     EXCERPT_COLUMN,
+    HTML_BLOCK_TAGS,
     MIN_TOPIC_SIZE,
     N_DOCUMENTS,
     TEXT_COLUMN,
     TOPIC_COLUMN,
 )
 
+_BLOCK_TAG = re.compile(rf"</?(?:{'|'.join(HTML_BLOCK_TAGS)})\b[^>]*>", re.IGNORECASE)
 _HTML_TAG = re.compile(r"<[^>]+>")
 _LINE_BREAK = re.compile(r"\\[nrt]|[\r\n\t]")
+_OMISSION = re.compile(r"\[\s*(?:\.\s*){3}\]|\[\s*…\s*\]")
+_SPACE_BEFORE_PUNCTUATION = re.compile(r"\s+([,.;:!?)\]])")
+_SPACE_AFTER_BRACKET = re.compile(r"([(\[])\s+")
 _WHITESPACE = re.compile(r"\s+")
+_PARAGRAPH_BREAK = re.compile(rf"{_BLOCK_TAG.pattern}|{_LINE_BREAK.pattern}", re.IGNORECASE)
+_PARAGRAPH_NUMBER = re.compile(r"(?<![\w.,/-])\d{1,3}\.(?=[A-ZÀ-ÖØ-Þ])")
 
 
 def load_documents(
@@ -77,15 +84,16 @@ def load_documents(
 
 
 def clean_text(text: str | None) -> str:
-    """Remove marcação HTML e quebras de linha de um texto.
+    """Remove marcação HTML e normaliza espaços de um texto.
 
     Etapas:
 
-    1. Troca etiquetas HTML (ex.: "<b>") por espaço.
-    2. Converte entidades HTML (ex.: "&nbsp;") em caracteres.
-    3. Troca quebras de linha e tabulações por espaço, inclusive as escritas como texto
-       (barra invertida seguida de "n").
-    4. Reduz espaços repetidos a um só e remove os das extremidades.
+    1. Troca etiquetas de bloco (ex.: "<p>", "<br>") por espaço.
+    2. Remove as demais etiquetas (ex.: "<b>", "<span>") sem inserir espaço.
+    3. Converte entidades HTML (ex.: "&nbsp;") em caracteres.
+    4. Troca marcas de omissão ("[...]") e quebras de linha, inclusive as escritas como
+       texto, por espaço.
+    5. Reduz espaços repetidos e remove o espaço antes de pontuação e depois de parênteses.
 
     Args:
         text: Texto de entrada. None e NaN viram texto vazio.
@@ -95,10 +103,63 @@ def clean_text(text: str | None) -> str:
     """
     if text is None or (isinstance(text, float) and math.isnan(text)):
         return ""
-    text = _HTML_TAG.sub(" ", str(text))
+    text = _BLOCK_TAG.sub(" ", str(text))
+    text = _HTML_TAG.sub("", text)
     text = html.unescape(text)
+    text = _OMISSION.sub(" ", text)
     text = _LINE_BREAK.sub(" ", text)
-    return _WHITESPACE.sub(" ", text).strip()
+    text = _WHITESPACE.sub(" ", text)
+    text = _SPACE_BEFORE_PUNCTUATION.sub(r"\1", text)
+    text = _SPACE_AFTER_BRACKET.sub(r"\1", text)
+    return text.strip()
+
+
+def split_paragraphs(text: str | None) -> list[str]:
+    """Divide um texto em parágrafos limpos.
+
+    Fronteiras de parágrafo:
+
+    - Etiquetas HTML de bloco (ex.: "<p>", "<br>") e quebras de linha.
+    - Números de parágrafo colados à palavra seguinte (ex.: "8.Este", "20.Quando").
+      O número é descartado.
+
+    Args:
+        text: Texto de entrada. None e NaN viram lista vazia.
+
+    Returns:
+        Parágrafos não vazios, já processados por clean_text, na ordem do texto.
+
+    Note:
+        Um número de parágrafo é reconhecido quando tem até 3 dígitos, não vem depois de letra,
+        dígito, ponto, vírgula, barra ou hífen e é seguido de ponto e letra maiúscula. Assim,
+        "Lei 8.666" e "Acórdão 1.131/2009" não são afetados.
+    """
+    if text is None or (isinstance(text, float) and math.isnan(text)):
+        return []
+    blocks = _PARAGRAPH_BREAK.split(str(text))
+    paragraphs = []
+    for block in blocks:
+        for part in _PARAGRAPH_NUMBER.split(clean_text(block)):
+            part = part.strip()
+            if part:
+                paragraphs.append(part)
+    return paragraphs
+
+
+def tag_frequency(texts: pd.Series) -> pd.DataFrame:
+    """Conta as etiquetas HTML de abertura em uma coluna de texto.
+
+    Args:
+        texts: Textos de entrada. Valores ausentes são ignorados.
+
+    Returns:
+        Tabela com as colunas tag, count e block, em ordem decrescente de contagem.
+        A coluna block indica se a etiqueta separa parágrafos.
+    """
+    tags = texts.dropna().str.findall(r"<([A-Za-z][A-Za-z0-9]*)").explode().dropna().str.lower()
+    table = tags.value_counts().rename("count").rename_axis("tag").reset_index()
+    table["block"] = table["tag"].isin(HTML_BLOCK_TAGS)
+    return table
 
 
 def label_distribution(df: pd.DataFrame, column: str) -> pd.DataFrame:

@@ -16,6 +16,26 @@ MIN_WORDS = 5
 MAX_WORDS = 80
 N_SENTENCES = 20_000
 SEED = 42
+# Etiquetas HTML que separam parágrafos; as demais são de formatação dentro da linha.
+HTML_BLOCK_TAGS = (
+    "p",
+    "br",
+    "div",
+    "li",
+    "ul",
+    "ol",
+    "tr",
+    "td",
+    "th",
+    "table",
+    "blockquote",
+    "h1",
+    "h2",
+    "h3",
+    "h4",
+    "h5",
+    "h6",
+)
 NLTK_RESOURCE = "punkt_tab"
 NLTK_LANGUAGE = "portuguese"
 # Abreviações jurídicas acrescentadas ao Punkt, em minúsculas e sem o ponto final.

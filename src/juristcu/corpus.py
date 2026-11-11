@@ -24,7 +24,7 @@ from juristcu.config import (
     SEED,
     TEXT_COLUMN,
 )
-from juristcu.data import clean_text
+from juristcu.data import split_paragraphs
 
 if TYPE_CHECKING:
     from nltk.tokenize import PunktTokenizer
@@ -116,7 +116,8 @@ def extract_sentences(df: pd.DataFrame) -> list[str]:
     """Extrai todas as frases de ENUNCIADO e EXCERTO, na ordem dos documentos.
 
     Cada documento contribui primeiro com as frases do ENUNCIADO e depois com as do EXCERTO.
-    Os textos passam por clean_text antes da segmentação. Textos ausentes são ignorados.
+    Cada texto é dividido em parágrafos limpos (split_paragraphs) e cada parágrafo é segmentado
+    em frases. Textos ausentes são ignorados.
 
     Args:
         df: Documentos com as colunas ENUNCIADO e EXCERTO. As demais colunas são ignoradas.
@@ -127,9 +128,8 @@ def extract_sentences(df: pd.DataFrame) -> list[str]:
     sentences: list[str] = []
     for statement, excerpt in zip(df[TEXT_COLUMN], df[EXCERPT_COLUMN], strict=True):
         for text in (statement, excerpt):
-            cleaned = clean_text(text)
-            if cleaned:
-                sentences.extend(split_sentences(cleaned))
+            for paragraph in split_paragraphs(text):
+                sentences.extend(split_sentences(paragraph))
     return sentences
 
 
@@ -163,7 +163,7 @@ def build_corpus(
 
     Etapas:
 
-    1. extract_sentences sobre ENUNCIADO e EXCERTO, com limpeza e split_sentences.
+    1. extract_sentences sobre ENUNCIADO e EXCERTO: parágrafos limpos e split_sentences.
     2. filter_by_length.
     3. deduplicate.
     4. Amostragem sem reposição de n_sentences frases, com a semente.
