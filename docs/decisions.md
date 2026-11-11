@@ -18,6 +18,10 @@ Decisões de implementação e desvios em relação ao [protocolo](protocol.md).
 | 2026-11-09 | Avisos de pesos ausentes ao carregar o decodificador do TSDAE são esperados. | O BERTimbau não traz as camadas de atenção cruzada do decodificador. Essas camadas são inicializadas e treinadas pelo TSDAE. |
 | 2026-11-09 | Proposta v0.3 convertida em protocolo (`docs/protocol.md`). | Documento curto e em tópicos, fonte única do estudo. |
 | 2026-11-09 | Proteção da `main` por ruleset, sem exceção para o dono. | Garante PR e CI verde em toda mudança. Rulesets valem em repositório público no plano gratuito. |
+| 2026-11-11 | `doc.csv` lido só com as colunas usadas, todas como texto. O carregamento confere as colunas e as 16.045 linhas. | Evita que a inferência de tipos do `datasets` varie entre blocos do arquivo. Um separador errado gera erro claro. |
+| 2026-11-11 | Limpeza antes da segmentação (`data.clean_text`): remove etiquetas e entidades HTML e troca quebras de linha, reais ou escritas como texto, por espaço. | O artigo do JurisTCU mostra `<b>` no ENUNCIADO e `\\n` no EXCERTO. Sem a limpeza, essas marcas entram nas frases do TSDAE. |
+| 2026-11-11 | Abreviações jurídicas do Punkt ficam em `config.LEGAL_ABBREVIATIONS`. | Constantes ficam apenas em `config.py`. A lista pode crescer após a inspeção manual do corpus. |
+| 2026-11-11 | Corpus: frases extraídas documento a documento (ENUNCIADO, depois EXCERTO); amostra devolvida na ordem sorteada; SHA-256 do `sentences.json` registrado em `corpus_funnel.csv`. | A ordem fixa torna a amostra reprodutível. O hash permite conferir que todos treinam com o mesmo corpus. |
 
 ## Pendências para o congelamento
 
@@ -29,3 +33,4 @@ O grupo aprova estes itens antes da tag `preregistro`. Lista também no [protoco
 | Análise por tema: filtrar temas com ao menos 20 documentos antes do k-means; k igual ao número de temas mantidos; mesmo bootstrap. | A proposta v0.3 não definia k nem o momento do filtro. Filtrar antes evita avaliar documentos de temas excluídos. |
 | Amostra de 20 mil frases única para as 3 sementes do TSDAE. | A variação entre sementes passa a medir apenas o treinamento. |
 | Agenda de aprendizado constante, sem decaimento de pesos. | Segue o exemplo de referência do TSDAE. A proposta v0.3 não fixava esses itens. |
+| Aplicar `data.clean_text` também ao ENUNCIADO, antes de R1 a R4. | Remove `<b>` e quebras escritas como texto do texto agrupado. Vale para todas as representações, então não favorece nenhuma. |

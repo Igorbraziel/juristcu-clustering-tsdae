@@ -16,6 +16,30 @@ MIN_WORDS = 5
 MAX_WORDS = 80
 N_SENTENCES = 20_000
 SEED = 42
+NLTK_RESOURCE = "punkt_tab"
+NLTK_LANGUAGE = "portuguese"
+# Abreviações jurídicas acrescentadas ao Punkt, em minúsculas e sem o ponto final.
+LEGAL_ABBREVIATIONS = (
+    "art",
+    "arts",
+    "inc",
+    "incs",
+    "al",
+    "n",
+    "nº",
+    "p",
+    "pp",
+    "min",
+    "rel",
+    "ac",
+    "proc",
+    "fl",
+    "fls",
+    "sr",
+    "sra",
+    "dr",
+    "dra",
+)
 
 # Representações
 LSA_DIM = 300

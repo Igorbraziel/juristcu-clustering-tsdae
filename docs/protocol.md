@@ -185,6 +185,7 @@ Mudanças em relação à proposta v0.3. O grupo aprova antes da tag `preregistr
 - Protocolo da análise por tema: filtro antes do k-means e k próprio.
 - Amostra de frases única para as 3 sementes do TSDAE.
 - Agenda de aprendizado constante, sem decaimento de pesos.
+- Limpeza de HTML e de quebras de linha também no ENUNCIADO, antes de todas as representações.
 
 ## 16. Integrantes
 
