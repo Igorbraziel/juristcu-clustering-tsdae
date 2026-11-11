@@ -30,6 +30,7 @@ _SPACE_AFTER_BRACKET = re.compile(r"([(\[])\s+")
 _WHITESPACE = re.compile(r"\s+")
 _PARAGRAPH_BREAK = re.compile(rf"{_BLOCK_TAG.pattern}|{_LINE_BREAK.pattern}", re.IGNORECASE)
 _PARAGRAPH_NUMBER = re.compile(r"(?<![\w.,/-])\d{1,3}\.(?=[A-ZÀ-ÖØ-Þ])")
+_LEADING_NUMBER = re.compile(r"^\d{1,3}(?:\.\d{1,3})*\.\s+")
 
 
 def load_documents(
@@ -122,6 +123,8 @@ def split_paragraphs(text: str | None) -> list[str]:
     - Etiquetas HTML de bloco (ex.: "<p>", "<br>") e quebras de linha.
     - Números de parágrafo colados à palavra seguinte (ex.: "8.Este", "20.Quando").
       O número é descartado.
+    - O número de item no início do parágrafo (ex.: "2. No âmbito", "9.3.9. cadastre") também
+      é descartado.
 
     Args:
         text: Texto de entrada. None e NaN viram lista vazia.
@@ -140,7 +143,7 @@ def split_paragraphs(text: str | None) -> list[str]:
     paragraphs = []
     for block in blocks:
         for part in _PARAGRAPH_NUMBER.split(clean_text(block)):
-            part = part.strip()
+            part = _LEADING_NUMBER.sub("", part.strip())
             if part:
                 paragraphs.append(part)
     return paragraphs

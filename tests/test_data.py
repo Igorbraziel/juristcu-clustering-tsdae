@@ -123,3 +123,19 @@ def test_tag_frequency_counts_opening_tags() -> None:
     table = data.tag_frequency(texts)
     assert table.set_index("tag")["count"].to_dict() == {"p": 2, "b": 1, "br": 1}
     assert table.set_index("tag")["block"].to_dict() == {"p": True, "b": False, "br": True}
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [
+        (
+            "<p>2. No âmbito da Seses, foram analisadas propostas.</p>",
+            "No âmbito da Seses, foram analisadas propostas.",
+        ),
+        ("<p>9.3.9. cadastre informações completas.</p>", "cadastre informações completas."),
+        ("<p>1.500 servidores foram afetados.</p>", "1.500 servidores foram afetados."),
+        ("<p>2019. Ano de referência.</p>", "2019. Ano de referência."),
+    ],
+)
+def test_split_paragraphs_removes_leading_item_numbers(raw: str, expected: str) -> None:
+    assert data.split_paragraphs(raw) == [expected]
