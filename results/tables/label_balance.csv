@@ -1,0 +1,9 @@
+statistic,AREA,TEMA
+categories,10.0,396.0
+documents,16045.0,16045.0
+largest_share,0.26288563415394206,0.046930507946400746
+smallest_count,153.0,1.0
+imbalance_ratio,27.568627450980394,753.0
+normalized_entropy,0.8477347543473036,0.8105968603143702
+categories_min_size,10.0,144.0
+share_min_size,1.0,0.9241508258024307
