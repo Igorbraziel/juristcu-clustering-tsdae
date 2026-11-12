@@ -24,6 +24,7 @@ Decisões de implementação e desvios em relação ao [protocolo](protocol.md).
 | 2026-11-11 | Corpus segmentado por parágrafo (`data.split_paragraphs`): etiquetas de bloco e números de parágrafo colados (ex.: "8.Este", "20.Quando") marcam fronteiras; o número é descartado. Números de item no início do parágrafo (ex.: "2. No âmbito", "9.3.9. cadastre") também são removidos. | O Punkt não separava "técnicos: 20.Quando" e juntava duas frases. As duas primeiras execuções mostraram os padrões. |
 | 2026-11-11 | Abreviações jurídicas do Punkt ficam em `config.LEGAL_ABBREVIATIONS`. | Constantes ficam apenas em `config.py`. A lista pode crescer após a inspeção manual do corpus. |
 | 2026-11-11 | Corpus: frases extraídas documento a documento (ENUNCIADO, depois EXCERTO); amostra devolvida na ordem sorteada; SHA-256 do `sentences.json` registrado em `corpus_funnel.csv`. | A ordem fixa torna a amostra reprodutível. O hash permite conferir que todos treinam com o mesmo corpus. |
+| 2026-11-12 | Perda do TSDAE registrada a cada 50 passos (`TsdaeConfig.logging_steps`) e gravada em `loss_history.json`, na pasta de cada modelo. | O protocolo monitora apenas a perda de treino. O arquivo junto do modelo preserva a curva se a sessão cair e alimenta a tabela e a figura da perda. |
 
 ## Pendências para o congelamento
 

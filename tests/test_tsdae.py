@@ -3,13 +3,23 @@
 O treinamento (train_tsdae) exige GPU e download e não é testado aqui.
 """
 
+import json
 import random
+from pathlib import Path
 
 import pytest
 
 from juristcu import tsdae
+from juristcu.config import TSDAE_LOSS_FILE
 
 LONG_TEXT = " ".join(f"w{i}" for i in range(2_000))
+
+# Formato de trainer.state.log_history: registros da perda e um registro final.
+LOG_HISTORY = [
+    {"loss": 7.5, "grad_norm": 10.0, "learning_rate": 3e-5, "epoch": 0.4, "step": 50},
+    {"loss": 5.0, "grad_norm": 8.0, "learning_rate": 3e-5, "epoch": 0.8, "step": 100},
+    {"train_runtime": 42.0, "train_loss": 6.1, "epoch": 1.0, "step": 125},
+]
 
 
 def test_delete_words_with_zero_ratio_keeps_all_words() -> None:
@@ -74,3 +84,35 @@ def test_make_denoising_pairs_changes_with_seed() -> None:
     first = tsdae.make_denoising_pairs([LONG_TEXT], ratio=0.6, seed=0)
     second = tsdae.make_denoising_pairs([LONG_TEXT], ratio=0.6, seed=1)
     assert first["noisy"] != second["noisy"]
+
+
+def test_load_loss_history_reads_file(tmp_path: Path) -> None:
+    (tmp_path / TSDAE_LOSS_FILE).write_text(json.dumps(LOG_HISTORY), encoding="utf-8")
+    assert tsdae.load_loss_history(tmp_path) == LOG_HISTORY
+
+
+def test_load_loss_history_requires_file(tmp_path: Path) -> None:
+    with pytest.raises(FileNotFoundError):
+        tsdae.load_loss_history(tmp_path)
+
+
+def test_loss_table_keeps_only_loss_records() -> None:
+    table = tsdae.loss_table(LOG_HISTORY)
+    assert list(table.columns) == ["step", "epoch", "loss"]
+    assert table["step"].tolist() == [50, 100]
+    assert table["loss"].tolist() == [7.5, 5.0]
+
+
+def test_loss_table_rejects_history_without_loss() -> None:
+    with pytest.raises(ValueError):
+        tsdae.loss_table(LOG_HISTORY[-1:])
+
+
+def test_training_summary_reads_final_record() -> None:
+    summary = tsdae.training_summary(LOG_HISTORY)
+    assert summary == {"steps": 125.0, "final_loss": 5.0, "train_loss": 6.1, "train_runtime": 42.0}
+
+
+def test_training_summary_requires_final_record() -> None:
+    with pytest.raises(ValueError):
+        tsdae.training_summary(LOG_HISTORY[:-1])
