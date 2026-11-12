@@ -38,7 +38,16 @@ def delete_words(text: str, ratio: float, rng: random.Random) -> str:
         - Não copiar o exemplo oficial do sentence-transformers. Ele usa random() < ratio para
           manter a palavra e, com ratio = 0,6, apaga apenas 40%.
     """
-    raise NotImplementedError
+    if not 0.0 <= ratio <= 1.0:
+        raise ValueError(f"ratio deve estar entre 0 e 1; recebido {ratio}.")
+    words = text.split()
+    if not words:
+        return text
+    # random() fica em [0, 1): a palavra permanece com probabilidade 1 - ratio.
+    kept = [word for word in words if rng.random() >= ratio]
+    if not kept:
+        kept = [rng.choice(words)]
+    return " ".join(kept)
 
 
 def make_denoising_pairs(
@@ -63,7 +72,9 @@ def make_denoising_pairs(
         - A ordem das chaves define a ordem das colunas do conjunto de dados.
         - A primeira coluna é a entrada com ruído.
     """
-    raise NotImplementedError
+    rng = random.Random(seed)
+    noisy = [delete_words(sentence, ratio, rng) for sentence in sentences]
+    return {"noisy": noisy, "text": list(sentences)}
 
 
 def train_tsdae(
