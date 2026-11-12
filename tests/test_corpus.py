@@ -1,8 +1,4 @@
-"""Especificação executável de corpus.py.
-
-Os testes marcados com xfail passam a XPASS quando a função for implementada. Com
-xfail_strict=true, o XPASS falha até o marcador ser removido.
-"""
+"""Especificação executável de corpus.py."""
 
 import re
 
@@ -12,8 +8,6 @@ import pytest
 
 from juristcu import corpus
 from juristcu.config import AREA_COLUMN, EXCERPT_COLUMN, TEXT_COLUMN, TOPIC_COLUMN
-
-not_implemented = pytest.mark.xfail(raises=NotImplementedError, reason="A implementar.")
 
 
 @pytest.fixture
@@ -61,7 +55,6 @@ def _words(n: int) -> str:
     return " ".join(["palavra"] * n)
 
 
-@not_implemented
 def test_filter_by_length_is_inclusive_at_both_limits() -> None:
     sentences = [_words(4), _words(5), _words(80), _words(81)]
     assert corpus.filter_by_length(sentences, min_words=5, max_words=80) == [
@@ -70,19 +63,16 @@ def test_filter_by_length_is_inclusive_at_both_limits() -> None:
     ]
 
 
-@not_implemented
 def test_filter_by_length_uses_config_defaults() -> None:
     sentences = [_words(4), _words(5), _words(80), _words(81)]
     assert corpus.filter_by_length(sentences) == [_words(5), _words(80)]
 
 
-@not_implemented
 def test_deduplicate_preserves_first_occurrence_order() -> None:
     sentences = ["c", "a", "c", "b", "a"]
     assert corpus.deduplicate(sentences) == ["c", "a", "b"]
 
 
-@not_implemented
 @pytest.mark.usefixtures("punkt_portuguese")
 def test_split_sentences_keeps_legal_abbreviations() -> None:
     text = (
@@ -94,7 +84,6 @@ def test_split_sentences_keeps_legal_abbreviations() -> None:
     assert "art. 25" in sentences[0]
 
 
-@not_implemented
 @pytest.mark.usefixtures("simple_splitter")
 def test_build_corpus_is_deterministic_with_seed(documents: pd.DataFrame) -> None:
     first = corpus.build_corpus(documents, n_sentences=10, seed=0)
@@ -104,7 +93,6 @@ def test_build_corpus_is_deterministic_with_seed(documents: pd.DataFrame) -> Non
     assert len(set(first)) == 10
 
 
-@not_implemented
 @pytest.mark.usefixtures("simple_splitter")
 def test_build_corpus_ignores_label_columns(documents: pd.DataFrame) -> None:
     # Rótulos diferentes não podem alterar o corpus.
@@ -118,10 +106,44 @@ def test_build_corpus_ignores_label_columns(documents: pd.DataFrame) -> None:
     assert not any("rotulo_" in sentence for sentence in reference)
 
 
-@not_implemented
 @pytest.mark.usefixtures("simple_splitter")
 def test_build_corpus_raises_when_sample_exceeds_valid_sentences(
     documents: pd.DataFrame,
 ) -> None:
     with pytest.raises(ValueError):
         corpus.build_corpus(documents, n_sentences=1_000, seed=0)
+
+
+@pytest.mark.usefixtures("punkt_portuguese")
+def test_split_sentences_keeps_other_legal_abbreviations() -> None:
+    text = (
+        "O pagamento observa o inc. II do art. 5º da norma, conforme o voto do Min. relator. "
+        "A unidade técnica concorda."
+    )
+    sentences = corpus.split_sentences(text)
+    assert len(sentences) == 2
+    assert "inc. II do art. 5º" in sentences[0]
+
+
+@pytest.mark.usefixtures("simple_splitter")
+def test_extract_sentences_cleans_markup_and_skips_missing() -> None:
+    df = pd.DataFrame(
+        {
+            TEXT_COLUMN: ["<b>SÚMULA TCU 1:</b> O gestor deve justificar a escolha.", None],
+            EXCERPT_COLUMN: ["Primeira frase do excerto.\\nSegunda frase.", "Outra frase."],
+        }
+    )
+    assert corpus.extract_sentences(df) == [
+        "SÚMULA TCU 1: O gestor deve justificar a escolha.",
+        "Primeira frase do excerto.",
+        "Segunda frase.",
+        "Outra frase.",
+    ]
+
+
+@pytest.mark.usefixtures("simple_splitter")
+def test_corpus_funnel_counts_each_step(documents: pd.DataFrame) -> None:
+    duplicated = pd.concat([documents, documents], ignore_index=True)
+    funnel = corpus.corpus_funnel(duplicated)
+    assert funnel["step"].to_list() == ["segmentadas", "filtro de tamanho", "sem duplicatas"]
+    assert funnel["sentences"].to_list() == [80, 80, 40]
