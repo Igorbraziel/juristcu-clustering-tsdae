@@ -25,6 +25,7 @@ Decisões de implementação e desvios em relação ao [protocolo](protocol.md).
 | 2026-11-11 | Abreviações jurídicas do Punkt ficam em `config.LEGAL_ABBREVIATIONS`. | Constantes ficam apenas em `config.py`. A lista pode crescer após a inspeção manual do corpus. |
 | 2026-11-11 | Corpus: frases extraídas documento a documento (ENUNCIADO, depois EXCERTO); amostra devolvida na ordem sorteada; SHA-256 do `sentences.json` registrado em `corpus_funnel.csv`. | A ordem fixa torna a amostra reprodutível. O hash permite conferir que todos treinam com o mesmo corpus. |
 | 2026-11-12 | Perda do TSDAE registrada a cada 50 passos (`TsdaeConfig.logging_steps`) e gravada em `loss_history.json`, na pasta de cada modelo. | O protocolo monitora apenas a perda de treino. O arquivo junto do modelo preserva a curva se a sessão cair e alimenta a tabela e a figura da perda. |
+| 2026-11-15 | Treino final do TSDAE (3 sementes) em um Mac com Apple M5 (MPS), em fp32 (`fp16=False`), antes da tag `preregistro`. Corpus gerado de novo com `build_corpus`, com SHA-256 igual ao da Parte 1. | Sem acesso ao Colab e ao `sentences.json` da Parte 1 no momento. O fp16 do Trainer exige CUDA. As 3 sementes usam a mesma máquina, então a variação entre elas mede só o treinamento. O TSDAE não usa rótulos, e os hiperparâmetros seguem o protocolo. |
 
 ## Pendências para o congelamento
 
