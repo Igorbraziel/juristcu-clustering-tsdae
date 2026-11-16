@@ -86,6 +86,7 @@ class TsdaeConfig:
         warmup_steps: Passos de aquecimento.
         max_seq_length: Comprimento máximo em tokens.
         fp16: Uso de precisão mista (a T4 não suporta bf16).
+        logging_steps: Intervalo, em passos, entre registros da perda de treino.
     """
 
     base_model: str = BERTIMBAU_ID
@@ -99,9 +100,12 @@ class TsdaeConfig:
     warmup_steps: int = 0
     max_seq_length: int = 128
     fp16: bool = True
+    logging_steps: int = 50
 
 
 TSDAE_SEEDS = (0, 1, 2)
+# Histórico da perda gravado ao lado de cada modelo treinado.
+TSDAE_LOSS_FILE = "loss_history.json"
 
 # Agrupamento e avaliação
 KMEANS_N_INIT = 10
