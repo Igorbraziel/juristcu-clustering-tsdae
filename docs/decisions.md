@@ -27,15 +27,9 @@ Decisões de implementação e desvios em relação ao [protocolo](protocol.md).
 | 2026-11-12 | Perda do TSDAE registrada a cada 50 passos (`TsdaeConfig.logging_steps`) e gravada em `loss_history.json`, na pasta de cada modelo. | O protocolo monitora apenas a perda de treino. O arquivo junto do modelo preserva a curva se a sessão cair e alimenta a tabela e a figura da perda. |
 | 2026-11-15 | Fora do Colab, o corpus só é reproduzido com o NLTK 3.9.1 ou 3.9.2 (SHA-256 igual ao da Parte 1). | Com o NLTK 3.10.4 do lock local, a segmentação gera 1 frase a mais em cada etapa e muda toda a amostra. |
 | 2026-11-16 | Modelos do TSDAE treinados em um Mac com Apple M5 (MPS, fp32) descartados. O treino final usa o Colab com GPU T4 e fp16, como no protocolo, antes da tag `preregistro`. | No Mac, nas 3 sementes, a perda caiu até cerca de 3,2 e subiu até cerca de 6,4 no fim, com picos de gradiente. No Colab, as 3 sementes terminaram estáveis, com perda final de 2,65, 2,66 e 2,65. O TSDAE não usa rótulos e segue os hiperparâmetros do protocolo, então treinar antes da tag não afeta a avaliação. |
-
-## Pendências para o congelamento
-
-O grupo aprova estes itens antes da tag `preregistro`. Lista também no [protocolo](protocol.md#15-pendências-para-o-congelamento).
-
-| Proposta | Motivo |
-|---|---|
-| Incluir R2-CLS (BERTimbau sem ajuste, pooling CLS) como controle exploratório de H2. | R3 usa CLS e R2 usa média. A diferença R3 − R2 mistura TSDAE e pooling. R3 − R2-CLS isola o TSDAE. |
-| Análise por tema: filtrar temas com ao menos 20 documentos antes do k-means; k igual ao número de temas mantidos; mesmo bootstrap. | A proposta v0.3 não definia k nem o momento do filtro. Filtrar antes evita avaliar documentos de temas excluídos. |
-| Amostra de 20 mil frases única para as 3 sementes do TSDAE. | A variação entre sementes passa a medir apenas o treinamento. |
-| Agenda de aprendizado constante, sem decaimento de pesos. | Segue o exemplo de referência do TSDAE. A proposta v0.3 não fixava esses itens. |
-| Aplicar `data.clean_text` também ao ENUNCIADO, antes de R1 a R4. | Remove `<b>` e quebras escritas como texto do texto agrupado. Vale para todas as representações, então não favorece nenhuma. |
+| 2026-11-16 | Aprovado pelo grupo: R2-CLS (BERTimbau sem ajuste, pooling CLS) como controle exploratório de H2. | R3 usa CLS e R2 usa média. A diferença R3 − R2 mistura TSDAE e pooling. R3 − R2-CLS isola o TSDAE. |
+| 2026-11-16 | Aprovado pelo grupo: na análise por tema, filtro dos temas com ao menos 20 documentos antes do k-means; k igual ao número de temas mantidos (144); mesmo bootstrap. | A proposta v0.3 não definia k nem o momento do filtro. Filtrar antes evita avaliar documentos de temas excluídos. |
+| 2026-11-16 | Aprovado pelo grupo: amostra de 20 mil frases única para as 3 sementes do TSDAE. | A variação entre sementes passa a medir apenas o treinamento. |
+| 2026-11-16 | Aprovado pelo grupo: agenda de aprendizado constante, sem decaimento de pesos. | Segue o exemplo de referência do TSDAE. A proposta v0.3 não fixava esses itens. |
+| 2026-11-16 | Aprovado pelo grupo: `data.clean_text` aplicado também ao ENUNCIADO, antes de R1 a R4. | Remove a marcação HTML de 3,6% dos enunciados. Vale para todas as representações, então não favorece nenhuma. |
+| 2026-11-16 | Protocolo congelado na tag `preregistro`. Mudanças posteriores entram apenas neste arquivo. | Fixa hipóteses, métricas e critérios antes de qualquer avaliação com rótulos. |

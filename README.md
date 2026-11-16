@@ -60,7 +60,7 @@ Perguntas específicas:
 | R4 | multilingual-e5-small pronto (prefixo `query:`) | Modelo geral de referência |
 
 - Todas as representações usam o ENUNCIADO e recebem normalização L2.
-- R2-CLS isola o efeito do TSDAE, pois R3 usa CLS e R2 usa média. Sua inclusão depende da aprovação do grupo.
+- R2-CLS isola o efeito do TSDAE, pois R3 usa CLS e R2 usa média. É um controle exploratório.
 
 **TSDAE:** apaga 60% das palavras de cada frase. O BERTimbau aprende a reconstruir a frase a partir de um único vetor. Configuração: lote 8, taxa 3e-5, 1 época e 3 sementes.
 
