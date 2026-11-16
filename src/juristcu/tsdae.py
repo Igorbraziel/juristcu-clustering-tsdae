@@ -11,11 +11,14 @@ import json
 import random
 from collections.abc import Mapping, Sequence
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pandas as pd
 
 from juristcu.config import TSDAE_LOSS_FILE, TsdaeConfig
+
+if TYPE_CHECKING:
+    from transformers import TrainerCallback
 
 
 def delete_words(text: str, ratio: float, rng: random.Random) -> str:
@@ -87,6 +90,7 @@ def train_tsdae(
     output_dir: Path,
     # TsdaeConfig é congelada. Compartilhar a instância padrão é seguro.
     config: TsdaeConfig = TsdaeConfig(),  # noqa: B008
+    callbacks: Sequence[TrainerCallback] | None = None,
 ) -> Path:
     """Treina o BERTimbau com TSDAE e salva apenas o codificador.
 
@@ -112,6 +116,8 @@ def train_tsdae(
         seed: Semente do treinamento e do ruído (um valor de TSDAE_SEEDS).
         output_dir: Diretório onde o codificador é salvo.
         config: Hiperparâmetros do TSDAE.
+        callbacks: Callbacks extras do Trainer, como o acompanhamento da perda no notebook.
+            Não alteram o treinamento.
 
     Returns:
         O próprio output_dir, para uso em embeddings.load_sentence_model.
@@ -158,7 +164,13 @@ def train_tsdae(
         save_strategy="no",
         report_to="none",
     )
-    trainer = SentenceTransformerTrainer(model=model, args=args, train_dataset=dataset, loss=loss)
+    trainer = SentenceTransformerTrainer(
+        model=model,
+        args=args,
+        train_dataset=dataset,
+        loss=loss,
+        callbacks=list(callbacks) if callbacks else None,
+    )
     trainer.train()
 
     output_dir.mkdir(parents=True, exist_ok=True)
