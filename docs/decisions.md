@@ -24,15 +24,9 @@ Decisões de implementação e desvios em relação ao [protocolo](protocol.md).
 | 2026-11-11 | Corpus segmentado por parágrafo (`data.split_paragraphs`): etiquetas de bloco e números de parágrafo colados (ex.: "8.Este", "20.Quando") marcam fronteiras; o número é descartado. Números de item no início do parágrafo (ex.: "2. No âmbito", "9.3.9. cadastre") também são removidos. | O Punkt não separava "técnicos: 20.Quando" e juntava duas frases. As duas primeiras execuções mostraram os padrões. |
 | 2026-11-11 | Abreviações jurídicas do Punkt ficam em `config.LEGAL_ABBREVIATIONS`. | Constantes ficam apenas em `config.py`. A lista pode crescer após a inspeção manual do corpus. |
 | 2026-11-11 | Corpus: frases extraídas documento a documento (ENUNCIADO, depois EXCERTO); amostra devolvida na ordem sorteada; SHA-256 do `sentences.json` registrado em `corpus_funnel.csv`. | A ordem fixa torna a amostra reprodutível. O hash permite conferir que todos treinam com o mesmo corpus. |
-
-## Pendências para o congelamento
-
-O grupo aprova estes itens antes da tag `preregistro`. Lista também no [protocolo](protocol.md#15-pendências-para-o-congelamento).
-
-| Proposta | Motivo |
-|---|---|
-| Incluir R2-CLS (BERTimbau sem ajuste, pooling CLS) como controle exploratório de H2. | R3 usa CLS e R2 usa média. A diferença R3 − R2 mistura TSDAE e pooling. R3 − R2-CLS isola o TSDAE. |
-| Análise por tema: filtrar temas com ao menos 20 documentos antes do k-means; k igual ao número de temas mantidos; mesmo bootstrap. | A proposta v0.3 não definia k nem o momento do filtro. Filtrar antes evita avaliar documentos de temas excluídos. |
-| Amostra de 20 mil frases única para as 3 sementes do TSDAE. | A variação entre sementes passa a medir apenas o treinamento. |
-| Agenda de aprendizado constante, sem decaimento de pesos. | Segue o exemplo de referência do TSDAE. A proposta v0.3 não fixava esses itens. |
-| Aplicar `data.clean_text` também ao ENUNCIADO, antes de R1 a R4. | Remove `<b>` e quebras escritas como texto do texto agrupado. Vale para todas as representações, então não favorece nenhuma. |
+| 2026-11-16 | Aprovado pelo grupo: R2-CLS (BERTimbau sem ajuste, pooling CLS) como controle exploratório de H2. | R3 usa CLS e R2 usa média. A diferença R3 − R2 mistura TSDAE e pooling. R3 − R2-CLS isola o TSDAE. |
+| 2026-11-16 | Aprovado pelo grupo: na análise por tema, filtro dos temas com ao menos 20 documentos antes do k-means; k igual ao número de temas mantidos (144); mesmo bootstrap. | A proposta v0.3 não definia k nem o momento do filtro. Filtrar antes evita avaliar documentos de temas excluídos. |
+| 2026-11-16 | Aprovado pelo grupo: amostra de 20 mil frases única para as 3 sementes do TSDAE. | A variação entre sementes passa a medir apenas o treinamento. |
+| 2026-11-16 | Aprovado pelo grupo: agenda de aprendizado constante, sem decaimento de pesos. | Segue o exemplo de referência do TSDAE. A proposta v0.3 não fixava esses itens. |
+| 2026-11-16 | Aprovado pelo grupo: `data.clean_text` aplicado também ao ENUNCIADO, antes de R1 a R4. | Remove a marcação HTML de 3,6% dos enunciados. Vale para todas as representações, então não favorece nenhuma. |
+| 2026-11-16 | Protocolo congelado na tag `preregistro`. Mudanças posteriores entram apenas neste arquivo. | Fixa hipóteses, métricas e critérios antes de qualquer avaliação com rótulos. |

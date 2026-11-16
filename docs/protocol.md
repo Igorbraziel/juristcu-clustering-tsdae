@@ -4,7 +4,7 @@ Agrupamento temático da jurisprudência do TCU com representações aprendidas 
 
 | Item | Valor |
 |---|---|
-| Status | Rascunho. Será congelado na tag `preregistro`, antes de qualquer experimento. |
+| Status | Congelado em 16/11/2026, na tag `preregistro`, antes de qualquer avaliação com rótulos. |
 | Origem | Proposta v0.3, de 5 de novembro de 2026. |
 | Disciplina | Aprendizado de Máquina Não Supervisionado (UFG) |
 | Dados | JurisTCU, `LeandroRibeiro/JurisTCU`, licença CC BY 4.0 |
@@ -55,19 +55,24 @@ Métrica principal: NMI entre os grupos do k-means e as áreas.
 | AREA | Referência principal de avaliação. |
 | TEMA | Referência secundária de avaliação. |
 
-A análise exploratória levanta o número de áreas e de temas e o equilíbrio entre eles.
+Resultado da análise exploratória (notebook 01):
+
+- 10 áreas, desbalanceadas: a maior reúne 26% dos documentos; a menor, 153 documentos.
+- 396 temas. Os 144 temas com ao menos 20 documentos cobrem 92% do acervo.
+- 99,6% dos EXCERTOS e 3,6% dos ENUNCIADOS contêm marcação HTML.
 
 ## 5. Corpus de frases sem rótulo
 
 - Fonte: ENUNCIADO e EXCERTO, sem rótulos nem metadados.
+- Limpeza: remoção da marcação HTML e divisão em parágrafos, inclusive nos números de parágrafo colados (ex.: "20.Quando").
 - Segmentação: NLTK para português, com abreviações jurídicas.
 - Filtro: frases de 5 a 80 palavras.
-- Limpeza: remoção de duplicatas.
+- Remoção de duplicatas.
 - Amostra: 20 mil frases, semente fixa, a mesma para as 3 sementes do TSDAE.
 
 ## 6. Representações
 
-Todas usam o ENUNCIADO e recebem normalização L2 antes do agrupamento.
+Todas usam o ENUNCIADO, limpo da marcação HTML (`data.clean_text`), e recebem normalização L2 antes do agrupamento.
 
 | ID | Representação | Papel |
 |---|---|---|
@@ -100,10 +105,10 @@ Todas usam o ENUNCIADO e recebem normalização L2 antes do agrupamento.
 
 | Etapa | Definição |
 |---|---|
-| Agrupamento principal | k-means++, 10 reinícios, k = número de áreas |
+| Agrupamento principal | k-means++, 10 reinícios, k = número de áreas (10) |
 | Validação externa | NMI (principal) e ARI em relação a AREA |
 | Validação interna | Coeficiente de silhueta |
-| Análise por tema | Mantém temas com ao menos 20 documentos; novo k-means com k = número de temas mantidos |
+| Análise por tema | Mantém temas com ao menos 20 documentos; novo k-means com k = número de temas mantidos (144) |
 | Escolha de k sem rótulos (P3) | k de 5 a 50; maior silhueta |
 | Incerteza | Bootstrap dos documentos, 1.000 reamostragens, IC de 95% |
 | Visualização | UMAP em 2 dimensões, colorido por área |
@@ -177,9 +182,9 @@ Ordem de corte, em caso de atraso no cronograma:
 | Frases ruidosas no corpus | Treinamento menos eficaz | Filtros e inspeção manual de uma amostra |
 | Atraso no cronograma | Projeto incompleto | Ordem de corte da seção 12 |
 
-## 15. Pendências para o congelamento
+## 15. Mudanças aprovadas no congelamento
 
-Mudanças em relação à proposta v0.3. O grupo aprova antes da tag `preregistro`.
+Mudanças em relação à proposta v0.3, aprovadas pelo grupo em 16/11/2026. Todas constam das seções acima.
 
 - Inclusão de R2-CLS como controle exploratório.
 - Protocolo da análise por tema: filtro antes do k-means e k próprio.
