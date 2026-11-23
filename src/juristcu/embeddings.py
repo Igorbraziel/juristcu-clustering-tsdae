@@ -5,7 +5,6 @@
 - R3: BERTimbau após o TSDAE, com o pooling CLS salvo no modelo.
 - R4: multilingual-e5-small com o prefixo "query: ".
 - Todas as representações passam por l2_normalize antes do agrupamento.
-- Esqueleto: as funções levantam NotImplementedError até serem implementadas.
 """
 
 from __future__ import annotations
@@ -17,6 +16,8 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from juristcu.config import ENCODE_BATCH_SIZE, ENCODE_MAX_SEQ_LENGTH, LSA_DIM, SEED
+
+POOLING_MODES = ("mean", "cls")
 
 if TYPE_CHECKING:
     from sentence_transformers import SentenceTransformer
@@ -43,7 +44,12 @@ def encode_lsa(
         - O TruncatedSVD usa o algoritmo "randomized" por padrão. Sem random_state, o resultado
           muda a cada execução.
     """
-    raise NotImplementedError
+    from sklearn.decomposition import TruncatedSVD
+    from sklearn.feature_extraction.text import TfidfVectorizer
+
+    tfidf = TfidfVectorizer().fit_transform(texts)
+    svd = TruncatedSVD(n_components=n_components, random_state=seed)
+    return svd.fit_transform(tfidf)
 
 
 def load_sentence_model(
@@ -73,7 +79,21 @@ def load_sentence_model(
           BERTimbau) recebe pooling pela média de forma implícita. Para R2, passar "mean".
         - Ajustar model.max_seq_length também quando pooling=None.
     """
-    raise NotImplementedError
+    # Importação tardia: torch e sentence-transformers são pesados.
+    from sentence_transformers import SentenceTransformer
+    from sentence_transformers.sentence_transformer.modules import Pooling, Transformer
+
+    if pooling is not None and pooling not in POOLING_MODES:
+        raise ValueError(f"pooling deve ser None, 'mean' ou 'cls'; recebido: {pooling!r}.")
+
+    if pooling is None:
+        model = SentenceTransformer(str(name_or_path))
+        model.max_seq_length = max_seq_length
+        return model
+
+    transformer = Transformer(str(name_or_path), max_seq_length=max_seq_length)
+    pooling_module = Pooling(transformer.get_embedding_dimension(), pooling_mode=pooling)
+    return SentenceTransformer(modules=[transformer, pooling_module])
 
 
 def encode_texts(
@@ -100,7 +120,14 @@ def encode_texts(
         - Manter normalize_embeddings=False. A normalização fica em l2_normalize, igual para
           todas as representações.
     """
-    raise NotImplementedError
+    embeddings = model.encode(
+        list(texts),
+        prompt=prefix,
+        batch_size=batch_size,
+        convert_to_numpy=True,
+        normalize_embeddings=False,
+    )
+    return np.asarray(embeddings)
 
 
 def l2_normalize(x: np.ndarray) -> np.ndarray:
@@ -114,4 +141,5 @@ def l2_normalize(x: np.ndarray) -> np.ndarray:
     Returns:
         Matriz do mesmo formato, com linhas de norma 1.
     """
-    raise NotImplementedError
+    norms = np.linalg.norm(x, axis=1, keepdims=True)
+    return x / np.where(norms == 0, 1, norms)
