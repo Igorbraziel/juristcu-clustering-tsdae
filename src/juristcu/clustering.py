@@ -112,6 +112,9 @@ def project_umap(
     Note:
         - n_jobs=1 é explícito. random_state já força uma única thread, e o valor explícito
           evita o aviso do umap-learn.
+        - A semente não garante resultado idêntico quando o grafo de vizinhos tem várias
+          componentes conexas. A inicialização espectral fica mal condicionada e amplifica
+          diferenças de ponto flutuante. Por isso as projeções usadas no estudo ficam gravadas.
         - A projeção serve à visualização e ao HDBSCAN. NMI, ARI e silhueta usam a
           representação original.
     """
