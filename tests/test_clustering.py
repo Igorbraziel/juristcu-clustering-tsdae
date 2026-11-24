@@ -5,10 +5,11 @@ import warnings
 import numpy as np
 import pandas as pd
 import pytest
+from sklearn.cluster import KMeans
 from sklearn.datasets import make_blobs
-from sklearn.metrics import adjusted_rand_score
+from sklearn.metrics import adjusted_rand_score, silhouette_score
 
-from juristcu import clustering
+from juristcu import clustering, config
 
 SWEEP_COLUMNS = ["k", "silhouette"]
 BEST_K_COLUMNS = ["representation", "best_k", "best_silhouette", "silhouette_at_n_areas", "n_areas"]
@@ -72,7 +73,11 @@ def test_run_kmeans_passes_n_init(
     monkeypatch.setattr(clustering, "KMeans", spy)
     x, _ = blobs
     clustering.run_kmeans(x, k=4, seed=7, n_init=3)
-    assert calls == [{"n_clusters": 4, "init": "k-means++", "n_init": 3, "random_state": 7}]
+    clustering.run_kmeans(x, k=4, seed=7)
+    assert calls == [
+        {"n_clusters": 4, "init": "k-means++", "n_init": 3, "random_state": 7},
+        {"n_clusters": 4, "init": "k-means++", "n_init": config.KMEANS_N_INIT, "random_state": 7},
+    ]
 
 
 # Varredura de k
@@ -93,6 +98,19 @@ def test_silhouette_sweep_peaks_at_true_k(blobs: tuple[np.ndarray, np.ndarray]) 
     table = clustering.silhouette_sweep(x, range(2, 7), seed=0)
     assert table["k"].tolist() == [2, 3, 4, 5, 6]
     assert table.loc[table["silhouette"].idxmax(), "k"] == 4
+
+
+def test_silhouette_sweep_uses_all_documents_by_default(
+    blobs: tuple[np.ndarray, np.ndarray],
+) -> None:
+    # Sem sample_size, a silhueta usa todos os documentos e o k-means recebe a semente.
+    x, _ = blobs
+    table = clustering.silhouette_sweep(x, [3, 4], seed=2)
+    for k, score in zip(table["k"], table["silhouette"], strict=True):
+        labels = KMeans(
+            n_clusters=k, init="k-means++", n_init=config.KMEANS_N_INIT, random_state=2
+        ).fit_predict(x)
+        assert score == pytest.approx(silhouette_score(x, labels, metric="euclidean"))
 
 
 def test_silhouette_sweep_sample_is_reproducible(blobs: tuple[np.ndarray, np.ndarray]) -> None:
@@ -116,6 +134,33 @@ def test_project_umap_returns_float32_projection(small_blobs: np.ndarray) -> Non
     projection = clustering.project_umap(small_blobs, seed=0, n_neighbors=5)
     assert projection.shape == (len(small_blobs), 2)
     assert projection.dtype == np.float32
+
+
+def test_project_umap_uses_config_defaults(
+    small_blobs: np.ndarray, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Registra os argumentos do UMAP sem alterar o comportamento.
+    import umap
+
+    calls = []
+    original = umap.UMAP
+
+    def spy(**kwargs: object) -> object:
+        calls.append(kwargs)
+        return original(**kwargs)
+
+    monkeypatch.setattr(umap, "UMAP", spy)
+    clustering.project_umap(small_blobs, seed=4)
+    assert calls == [
+        {
+            "n_components": config.UMAP_N_COMPONENTS,
+            "n_neighbors": config.UMAP_N_NEIGHBORS,
+            "min_dist": config.UMAP_MIN_DIST,
+            "metric": "euclidean",
+            "random_state": 4,
+            "n_jobs": 1,
+        }
+    ]
 
 
 def test_project_umap_is_deterministic_with_seed(small_blobs: np.ndarray) -> None:
@@ -149,10 +194,24 @@ def test_run_hdbscan_emits_no_future_warning(dense_blobs_with_outlier: np.ndarra
         clustering.run_hdbscan(dense_blobs_with_outlier, min_cluster_size=10)
 
 
-def test_run_hdbscan_does_not_change_input(dense_blobs_with_outlier: np.ndarray) -> None:
-    x = dense_blobs_with_outlier.copy()
-    clustering.run_hdbscan(x, min_cluster_size=10)
-    np.testing.assert_array_equal(x, dense_blobs_with_outlier)
+def test_run_hdbscan_passes_parameters(
+    dense_blobs_with_outlier: np.ndarray, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Registra os argumentos do HDBSCAN sem alterar o comportamento.
+    calls = []
+    original = clustering.HDBSCAN
+
+    def spy(**kwargs: object) -> object:
+        calls.append(kwargs)
+        return original(**kwargs)
+
+    monkeypatch.setattr(clustering, "HDBSCAN", spy)
+    clustering.run_hdbscan(dense_blobs_with_outlier)
+    clustering.run_hdbscan(dense_blobs_with_outlier, min_cluster_size=10)
+    assert calls == [
+        {"min_cluster_size": config.HDBSCAN_MIN_CLUSTER_SIZE, "copy": True},
+        {"min_cluster_size": 10, "copy": True},
+    ]
 
 
 # Tabela das atribuições
@@ -172,6 +231,12 @@ def test_assignments_table_has_document_then_representations() -> None:
 def test_assignments_table_keeps_noise_label() -> None:
     table = clustering.assignments_table({"R1": np.array([-1, 0])}, np.array([0, 1]))
     assert table["R1"].tolist() == [-1, 0]
+
+
+def test_assignments_table_rejects_non_integer_labels() -> None:
+    # Rótulos fracionários ou NaN indicariam uma tabela corrompida.
+    with pytest.raises(ValueError):
+        clustering.assignments_table({"R1": np.array([0.0, np.nan, 2.0])}, np.arange(3))
 
 
 def test_assignments_table_rejects_length_mismatch() -> None:
@@ -195,6 +260,17 @@ def test_best_k_table_has_one_row_per_representation() -> None:
     assert table["best_silhouette"].tolist() == pytest.approx([0.3, 0.4])
     assert table["silhouette_at_n_areas"].tolist() == pytest.approx([0.3, 0.2])
     assert table["n_areas"].tolist() == [6, 6]
+
+
+def test_best_k_table_has_integer_k() -> None:
+    table = clustering.best_k_table({"R1": sweep([5, 10], [0.1, 0.3])}, n_areas=10)
+    assert table["best_k"].dtype == np.int64
+    assert table["n_areas"].dtype == np.int64
+
+
+def test_best_k_table_rejects_empty_sweep() -> None:
+    with pytest.raises(ValueError):
+        clustering.best_k_table({"R1": sweep([], [])}, n_areas=10)
 
 
 def test_best_k_table_breaks_ties_with_smallest_k() -> None:
@@ -226,3 +302,34 @@ def test_sweep_table_is_long_format() -> None:
     assert table["representation"].tolist() == ["R3-seed0"] * 2 + ["R1"] * 3
     assert table["k"].tolist() == [5, 6, 5, 6, 7]
     assert table["silhouette"].tolist() == pytest.approx([0.1, 0.3, 0.4, 0.2, 0.1])
+
+
+# Retomada da varredura
+
+
+def test_completed_sweeps_keeps_only_complete_representations() -> None:
+    # R1 completa, R2 incompleta e R3 ausente; a ordem segue names.
+    saved = pd.DataFrame(
+        {
+            "representation": ["R2", "R1", "R1", "R1"],
+            "k": [5, 7, 5, 6],
+            "silhouette": [0.2, 0.3, 0.1, 0.4],
+        }
+    )
+    sweeps = clustering.completed_sweeps(saved, ["R1", "R2", "R3"], range(5, 8))
+    assert list(sweeps) == ["R1"]
+    assert list(sweeps["R1"].columns) == SWEEP_COLUMNS
+    assert sweeps["R1"]["k"].tolist() == [5, 6, 7]
+    assert sweeps["R1"]["silhouette"].tolist() == [0.1, 0.4, 0.3]
+
+
+def test_completed_sweeps_accepts_empty_table() -> None:
+    empty = clustering.sweep_table({})
+    assert clustering.completed_sweeps(empty, ["R1"], range(5, 8)) == {}
+
+
+def test_completed_sweeps_round_trips_sweep_table(blobs: tuple[np.ndarray, np.ndarray]) -> None:
+    x, _ = blobs
+    original = {"R1": clustering.silhouette_sweep(x, range(2, 5), seed=0)}
+    restored = clustering.completed_sweeps(clustering.sweep_table(original), ["R1"], range(2, 5))
+    pd.testing.assert_frame_equal(restored["R1"], original["R1"])

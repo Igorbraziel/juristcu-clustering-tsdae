@@ -44,6 +44,12 @@ def test_external_scores_ignore_label_permutation() -> None:
     assert scores["ari"] == pytest.approx(1.0)
 
 
+def test_external_scores_use_adjusted_rand() -> None:
+    # Partições independentes: o ARI é negativo, ao contrário do índice de Rand sem ajuste.
+    scores = evaluation.external_scores(np.array([0, 0, 1, 1]), np.array([0, 1, 0, 1]))
+    assert scores["ari"] == pytest.approx(-0.5)
+
+
 def test_external_scores_use_arithmetic_nmi() -> None:
     # Partições com entropias diferentes: a média aritmética difere da geométrica.
     y_true = np.array([0, 0, 0, 0, 1, 1, 1, 1])
@@ -86,6 +92,9 @@ def test_internal_score_sample_is_reproducible(blobs: tuple[np.ndarray, np.ndarr
     first = evaluation.internal_score(x, labels, seed=1, sample_size=100)
     second = evaluation.internal_score(x, labels, seed=1, sample_size=100)
     assert first == second
+    expected = silhouette_score(x, labels, metric="euclidean", sample_size=100, random_state=1)
+    assert first == pytest.approx(expected)
+    assert first != pytest.approx(evaluation.internal_score(x, labels))
 
 
 def test_filter_min_size_keeps_labels_at_threshold() -> None:
@@ -103,11 +112,38 @@ def test_filter_min_size_never_keeps_missing_labels() -> None:
     assert mask.tolist() == [True, True, False, False, False, False, False]
 
 
+@pytest.mark.parametrize("min_size", [0, -1])
+def test_filter_min_size_drops_missing_labels_without_threshold(min_size: int) -> None:
+    y_true = np.array(["a", None, np.nan], dtype=object)
+    mask = evaluation.filter_min_size(y_true, min_size=min_size)
+    assert mask.tolist() == [True, False, False]
+
+
 def test_filter_min_size_accepts_numeric_labels() -> None:
     y_true = np.array([1.0, 1.0, 2.0, np.nan, np.nan, 3.0, 3.0, 3.0])
     mask = evaluation.filter_min_size(y_true, min_size=2)
     assert mask.shape == y_true.shape
     assert mask.tolist() == [True, True, False, False, False, True, True, True]
+
+
+def test_noise_aware_scores_ignore_noise() -> None:
+    # O ruído (-1) fica fora da NMI e do ARI e entra na fração de ruído.
+    y_true = np.array([0, 0, 1, 1, 0, 1])
+    y_pred = np.array([5, 5, 7, 7, -1, -1])
+    scores = evaluation.noise_aware_scores(y_true, y_pred)
+    assert set(scores) == {"nmi", "ari", "n_groups", "noise_share"}
+    assert scores["nmi"] == pytest.approx(1.0)
+    assert scores["ari"] == pytest.approx(1.0)
+    assert scores["n_groups"] == 2
+    assert scores["noise_share"] == pytest.approx(2 / 6)
+
+
+def test_noise_aware_scores_with_only_noise() -> None:
+    scores = evaluation.noise_aware_scores(np.array([0, 1, 1]), np.array([-1, -1, -1]))
+    assert scores["n_groups"] == 0
+    assert scores["noise_share"] == pytest.approx(1.0)
+    assert np.isnan(scores["nmi"])
+    assert np.isnan(scores["ari"])
 
 
 @not_implemented

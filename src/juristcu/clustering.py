@@ -4,6 +4,7 @@
 - Varredura de k pela silhueta, sem rótulos.
 - Projeção UMAP em 2 dimensões e HDBSCAN como extra opcional.
 - Tabelas das atribuições, das varreduras e do k de maior silhueta, prontas para CSV.
+- Retomada da varredura a partir da tabela gravada.
 """
 
 from __future__ import annotations
@@ -75,8 +76,7 @@ def silhouette_sweep(
 
     Note:
         - Varredura de k pela silhueta, sem rótulos.
-        - sample_size=None usa todos os documentos, como no protocolo. A subamostra é um
-          desvio e serve aos testes.
+        - sample_size=None usa todos os documentos. A subamostra serve aos testes.
         - O k sugerido é o de maior silhueta. Ver best_k_table.
     """
     rows = []
@@ -166,7 +166,8 @@ def assignments_table(preds: Mapping[str, np.ndarray], documents: np.ndarray) ->
         preds.
 
     Raises:
-        ValueError: Se algum agrupamento tiver tamanho diferente de documents.
+        ValueError: Se algum agrupamento tiver tamanho diferente de documents ou rótulos que
+            não sejam inteiros.
 
     Note:
         - A tabela serve para gravar as atribuições em CSV para a avaliação.
@@ -174,11 +175,14 @@ def assignments_table(preds: Mapping[str, np.ndarray], documents: np.ndarray) ->
     index = np.asarray(documents, dtype=np.int64)
     columns = {"document": index}
     for name, labels in preds.items():
-        if len(labels) != len(index):
+        values = np.asarray(labels)
+        if len(values) != len(index):
             raise ValueError(
-                f"O agrupamento {name} tem {len(labels)} linhas; esperado {len(index)}."
+                f"O agrupamento {name} tem {len(values)} linhas; esperado {len(index)}."
             )
-        columns[name] = np.asarray(labels, dtype=np.int64)
+        if not np.issubdtype(values.dtype, np.integer):
+            raise ValueError(f"O agrupamento {name} não tem rótulos inteiros: {values.dtype}.")
+        columns[name] = values.astype(np.int64)
     return pd.DataFrame(columns)
 
 
@@ -244,3 +248,32 @@ def sweep_table(sweeps: Mapping[str, pd.DataFrame]) -> pd.DataFrame:
     if not frames:
         return pd.DataFrame(columns=columns)
     return pd.concat(frames, ignore_index=True)
+
+
+def completed_sweeps(
+    table: pd.DataFrame,
+    names: Iterable[str],
+    k_values: Iterable[int] = K_RANGE,
+) -> dict[str, pd.DataFrame]:
+    """Recupera as varreduras completas de uma tabela gravada por sweep_table.
+
+    Args:
+        table: Tabela com as colunas representation, k e silhouette.
+        names: Representações procuradas, na ordem do resultado.
+        k_values: Valores de k que uma varredura completa contém.
+
+    Returns:
+        Varredura de cada representação completa, no formato de silhouette_sweep e ordenada
+        por k. Representações ausentes ou incompletas ficam de fora.
+
+    Note:
+        - Permite retomar a varredura sem refazer as representações já concluídas.
+    """
+    expected = {int(k) for k in k_values}
+    sweeps = {}
+    for name in names:
+        rows = table.loc[table["representation"] == name, ["k", "silhouette"]]
+        if set(rows["k"].astype(int)) == expected and len(rows) == len(expected):
+            sweep = rows.sort_values("k", kind="stable").reset_index(drop=True)
+            sweeps[name] = sweep.astype({"k": "int64", "silhouette": "float64"})
+    return sweeps

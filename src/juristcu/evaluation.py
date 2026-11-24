@@ -75,8 +75,8 @@ def internal_score(
     Note:
         - Usa a distância euclidiana, a mesma do k-means. Com vetores de norma 1, ela ordena os
           pares como a distância do cosseno.
-        - O custo cresce com o quadrado do número de documentos. sample_size reduz o tempo, mas
-          a subamostra é um desvio do protocolo.
+        - O custo cresce com o quadrado do número de documentos. sample_size reduz o tempo,
+          mas muda o valor da silhueta.
     """
     score = silhouette_score(
         x, labels, metric="euclidean", sample_size=sample_size, random_state=seed
@@ -101,7 +101,37 @@ def filter_min_size(y_true: np.ndarray, min_size: int = MIN_TOPIC_SIZE) -> np.nd
     """
     labels = pd.Series(np.asarray(y_true, dtype=object))
     counts = labels.map(labels.value_counts(dropna=True))
-    return counts.fillna(0).ge(min_size).to_numpy(dtype=bool)
+    return (counts.ge(min_size) & labels.notna()).to_numpy(dtype=bool)
+
+
+def noise_aware_scores(y_true: np.ndarray, y_pred: np.ndarray) -> dict[str, float]:
+    """Compara com os rótulos um agrupamento que marca ruído com -1.
+
+    Args:
+        y_true: Área ou tema de cada documento.
+        y_pred: Grupo de cada documento. O valor -1 indica ruído.
+
+    Returns:
+        Dicionário com as chaves:
+        - "nmi" e "ari": calculadas como em external_scores, só nos documentos fora do ruído.
+          Valem NaN quando todos os documentos são ruído.
+        - "n_groups": número de grupos, sem contar o ruído.
+        - "noise_share": fração dos documentos marcados como ruído.
+
+    Note:
+        - Serve ao HDBSCAN, que não fixa o número de grupos nem cobre todos os documentos.
+        - O resultado não se compara diretamente ao do k-means.
+    """
+    y_true = np.asarray(y_true)
+    y_pred = np.asarray(y_pred)
+    kept = y_pred != -1
+    n_groups = int(np.unique(y_pred[kept]).size)
+    noise_share = float(np.mean(~kept)) if len(y_pred) else 0.0
+    if not kept.any():
+        scores = {"nmi": float("nan"), "ari": float("nan")}
+    else:
+        scores = external_scores(y_true[kept], y_pred[kept])
+    return {**scores, "n_groups": n_groups, "noise_share": noise_share}
 
 
 def bootstrap_nmi_ci(
