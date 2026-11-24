@@ -15,9 +15,9 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import numpy as np
+import pandas as pd
 
 if TYPE_CHECKING:
-    import pandas as pd
     from matplotlib.figure import Figure
 
 
@@ -58,7 +58,7 @@ def save_embeddings(name: str, x: np.ndarray) -> Path:
     O arquivo fica em artifacts_dir()/embeddings/<name>.npy.
 
     Args:
-        name: Nome do arquivo, sem extensão (por exemplo, "r3_seed0").
+        name: Nome do arquivo, sem extensão (por exemplo, "R3-seed0").
         x: Matriz com uma linha por documento.
 
     Returns:
@@ -109,6 +109,30 @@ def save_table(df: pd.DataFrame, name: str) -> Path:
     return path
 
 
+def load_table(name: str) -> pd.DataFrame:
+    """Carrega uma tabela CSV da pasta results/tables do repositório.
+
+    Args:
+        name: Nome do arquivo, sem extensão.
+
+    Returns:
+        Tabela lida, com um índice numérico novo.
+
+    Raises:
+        FileNotFoundError: Se a raiz do repositório ou o arquivo não forem encontrados.
+
+    Note:
+        - É o par de save_table e localiza a raiz do repositório da mesma forma.
+        - Os tipos das colunas são os inferidos pelo pandas na leitura do CSV.
+    """
+    path = _results_dir("tables") / f"{name}.csv"
+    if not path.is_file():
+        raise FileNotFoundError(
+            f"Tabela '{name}' não encontrada em {path}. Gere-a antes com save_table."
+        )
+    return pd.read_csv(path)
+
+
 def save_figure(fig: Figure, name: str, dpi: int = 150) -> Path:
     """Salva uma figura em PNG na pasta results/figures do repositório.
 
@@ -148,6 +172,8 @@ def log_environment() -> dict[str, str]:
         "sentence-transformers",
         "scikit-learn",
         "numpy",
+        "pandas",
+        "datasets",
         "umap-learn",
         "nltk",
     )
