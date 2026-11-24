@@ -58,7 +58,7 @@ Passo a passo:
 2. Abrir o notebook pelo selo "Open in Colab" do [README](README.md).
 3. Para testar código da branch, trocar `BRANCH = "main"` pelo nome da branch na célula de configuração.
 4. Executar a célula de configuração e editar o notebook.
-5. Nos notebooks 01 a 03, marcar **Omitir a saída das células de código ao salvar este notebook** (Editar → Configurações do notebook). O `00_overview` é a exceção: ele mantém as saídas.
+5. Nos notebooks 01 a 04, marcar **Omitir a saída das células de código ao salvar este notebook** (Editar → Configurações do notebook). O `00_overview` é a exceção: ele mantém as saídas.
 6. Salvar: Arquivo → **Salvar uma cópia no GitHub**.
    - Repositório: `Igorbraziel/juristcu-clustering-tsdae`.
    - Branch: a branch de trabalho. Nunca a `main`.
@@ -82,7 +82,8 @@ Observações:
 ## Implementação de funções
 
 - As funções do esqueleto levantam `NotImplementedError`.
-- Os testes correspondentes estão marcados com `xfail`.
+- Quando uma função do esqueleto já tem teste, esse teste está marcado com `xfail`.
+- Funções sem teste recebem um arquivo de teste novo em `tests/`, junto com a implementação.
 - Ao implementar uma função, remover o marcador `xfail` do teste correspondente.
 - Com `xfail_strict = true`, um teste que passa com o marcador aparece como XPASS e falha o CI.
 
@@ -97,7 +98,9 @@ Observações:
 
 - O [protocolo](docs/protocol.md) define o estudo. Após a tag `preregistro`, não é editado.
 - Todo desvio do protocolo vai para [docs/decisions.md](docs/decisions.md), com data e motivo.
-- A tag `preregistro` é criada após a reunião que congelar as hipóteses:
+- A tag `preregistro` foi criada em 16/11/2026, após a reunião que congelou as hipóteses.
+
+Comandos usados na criação da tag:
 
 ```bash
 git switch main && git pull
