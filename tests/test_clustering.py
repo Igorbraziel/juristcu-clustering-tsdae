@@ -163,7 +163,8 @@ def test_project_umap_uses_config_defaults(
     ]
 
 
-def test_project_umap_is_deterministic_with_seed(small_blobs: np.ndarray) -> None:
+def test_project_umap_repeats_on_well_separated_data(small_blobs: np.ndarray) -> None:
+    # Grupos bem separados formam um grafo conexo; a mesma semente repete a projeção.
     first = clustering.project_umap(small_blobs, seed=0, n_neighbors=5)
     second = clustering.project_umap(small_blobs, seed=0, n_neighbors=5)
     np.testing.assert_array_equal(first, second)
