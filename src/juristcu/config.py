@@ -68,6 +68,8 @@ E5_ID = "intfloat/multilingual-e5-small"
 E5_PREFIX = "query: "
 ENCODE_MAX_SEQ_LENGTH = 256
 ENCODE_BATCH_SIZE = 64
+# Nomes das representações salvas, na ordem das tabelas. R3 aparece uma vez por semente.
+REPRESENTATION_NAMES = ("R1", "R2", "R2-CLS", "R3-seed0", "R3-seed1", "R3-seed2", "R4")
 
 
 @dataclass(frozen=True)
@@ -113,4 +115,10 @@ K_RANGE = range(5, 51)
 MIN_TOPIC_SIZE = 20
 N_BOOTSTRAP = 1_000
 CI_LEVEL = 0.95
+# Normalização da NMI: média aritmética das entropias, padrão do scikit-learn.
+NMI_AVERAGE_METHOD = "arithmetic"
 UMAP_N_COMPONENTS = 2
+# Padrões do umap-learn, fixados para reprodutibilidade.
+UMAP_N_NEIGHBORS = 15
+UMAP_MIN_DIST = 0.1
+HDBSCAN_MIN_CLUSTER_SIZE = 20

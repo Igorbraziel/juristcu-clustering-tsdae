@@ -1,7 +1,8 @@
 """Validação externa e interna dos agrupamentos, com bootstrap.
 
 - Rótulos (AREA e TEMA) entram apenas na avaliação, nunca no treinamento.
-- Esqueleto: as funções levantam NotImplementedError até serem implementadas.
+- NMI calculada com a normalização de config.NMI_AVERAGE_METHOD em todas as funções.
+- Esqueleto: as funções de bootstrap levantam NotImplementedError até serem implementadas.
 """
 
 from __future__ import annotations
@@ -10,8 +11,10 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 
 import numpy as np
+import pandas as pd
+from sklearn.metrics import adjusted_rand_score, normalized_mutual_info_score, silhouette_score
 
-from juristcu.config import CI_LEVEL, MIN_TOPIC_SIZE, N_BOOTSTRAP, SEED
+from juristcu.config import CI_LEVEL, MIN_TOPIC_SIZE, N_BOOTSTRAP, NMI_AVERAGE_METHOD, SEED
 
 
 @dataclass(frozen=True)
@@ -39,9 +42,14 @@ def external_scores(y_true: np.ndarray, y_pred: np.ndarray) -> dict[str, float]:
         y_pred: Grupo de cada documento.
 
     Returns:
-        Dicionário com as chaves "nmi" e "ari".
+        Dicionário com as chaves "nmi" e "ari", com valores float.
+
+    Note:
+        - A NMI usa average_method=NMI_AVERAGE_METHOD. O bootstrap deve usar a mesma definição.
     """
-    raise NotImplementedError
+    nmi = normalized_mutual_info_score(y_true, y_pred, average_method=NMI_AVERAGE_METHOD)
+    ari = adjusted_rand_score(y_true, y_pred)
+    return {"nmi": float(nmi), "ari": float(ari)}
 
 
 def internal_score(
@@ -62,10 +70,15 @@ def internal_score(
         Silhueta média, entre -1 e 1.
 
     Note:
-        - O custo cresce com o quadrado do número de documentos. sample_size reduz o tempo da
-          varredura de k.
+        - Usa a distância euclidiana, a mesma do k-means. Com vetores de norma 1, ela ordena os
+          pares como a distância do cosseno.
+        - O custo cresce com o quadrado do número de documentos. sample_size reduz o tempo, mas
+          a subamostra é um desvio do protocolo.
     """
-    raise NotImplementedError
+    score = silhouette_score(
+        x, labels, metric="euclidean", sample_size=sample_size, random_state=seed
+    )
+    return float(score)
 
 
 def filter_min_size(y_true: np.ndarray, min_size: int = MIN_TOPIC_SIZE) -> np.ndarray:
@@ -81,8 +94,11 @@ def filter_min_size(y_true: np.ndarray, min_size: int = MIN_TOPIC_SIZE) -> np.nd
     Note:
         - Na análise por TEMA, aplicar a máscara antes do k-means.
         - O k-means por TEMA usa k igual ao número de temas mantidos.
+        - Rótulos ausentes (None ou NaN) nunca são mantidos.
     """
-    raise NotImplementedError
+    labels = pd.Series(np.asarray(y_true, dtype=object))
+    counts = labels.map(labels.value_counts(dropna=True))
+    return counts.fillna(0).ge(min_size).to_numpy(dtype=bool)
 
 
 def bootstrap_nmi_ci(
@@ -114,6 +130,7 @@ def bootstrap_nmi_ci(
 
     Note:
         - O bootstrap reamostra as atribuições já obtidas. O k-means não é refeito.
+        - NMI calculada como em external_scores.
     """
     raise NotImplementedError
 
@@ -149,5 +166,6 @@ def bootstrap_nmi_difference(
     Note:
         - Bootstrap pareado: os mesmos índices sorteados valem para todos os agrupamentos.
         - H1 e H2 se confirmam quando o limite inferior é positivo.
+        - NMI calculada como em external_scores.
     """
     raise NotImplementedError
