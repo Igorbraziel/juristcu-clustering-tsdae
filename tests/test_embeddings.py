@@ -47,9 +47,19 @@ def tiny_bert(tmp_path_factory: pytest.TempPathFactory) -> Path:
         intermediate_size=32,
         max_position_embeddings=64,
     )
+    # O argumento é "vocab". Um "vocab_file" é ignorado sem erro, e toda palavra vira [UNK].
+    tokenizer = BertTokenizerFast(vocab=str(vocab_file), do_lower_case=False, strip_accents=False)
     BertModel(config).save_pretrained(directory)
-    BertTokenizerFast(vocab_file=str(vocab_file)).save_pretrained(directory)
+    tokenizer.save_pretrained(directory)
     return directory
+
+
+def test_tiny_bert_knows_every_word(tiny_bert: Path) -> None:
+    from transformers import AutoTokenizer
+
+    tokenizer = AutoTokenizer.from_pretrained(tiny_bert)
+    tokens = [token for text in TEXTS for token in tokenizer.tokenize(f"query: {text}")]
+    assert "[UNK]" not in tokens
 
 
 # R1: LSA
