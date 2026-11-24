@@ -69,6 +69,9 @@ def internal_score(
     Returns:
         Silhueta média, entre -1 e 1.
 
+    Raises:
+        ValueError: Se houver um único grupo ou tantos grupos quanto documentos.
+
     Note:
         - Usa a distância euclidiana, a mesma do k-means. Com vetores de norma 1, ela ordena os
           pares como a distância do cosseno.

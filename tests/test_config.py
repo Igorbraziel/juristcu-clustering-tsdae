@@ -53,3 +53,24 @@ def test_evaluation_constants_match_proposal() -> None:
     assert config.MIN_TOPIC_SIZE == 20
     assert config.N_BOOTSTRAP == 1_000
     assert config.CI_LEVEL == 0.95
+
+
+def test_nmi_uses_arithmetic_average() -> None:
+    # Média aritmética das entropias, padrão do scikit-learn.
+    assert config.NMI_AVERAGE_METHOD == "arithmetic"
+
+
+def test_umap_and_hdbscan_defaults() -> None:
+    # UMAP em 2 componentes, 15 vizinhos e distância mínima 0,1; HDBSCAN com 20 documentos.
+    assert config.UMAP_N_COMPONENTS == 2
+    assert config.UMAP_N_NEIGHBORS == 15
+    assert config.UMAP_MIN_DIST == 0.1
+    assert config.HDBSCAN_MIN_CLUSTER_SIZE == 20
+
+
+def test_representation_names() -> None:
+    # Sete nomes únicos; R3 aparece uma vez por semente do TSDAE.
+    names = config.REPRESENTATION_NAMES
+    r3_names = tuple(f"R3-seed{seed}" for seed in config.TSDAE_SEEDS)
+    assert names == ("R1", "R2", "R2-CLS", *r3_names, "R4")
+    assert len(set(names)) == 7
