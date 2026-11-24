@@ -8,9 +8,10 @@ Os grupos do k-means são avaliados com NMI, ARI e silhueta; as áreas atribuíd
 | [`00_overview`](notebooks/00_overview.ipynb) | Estudo completo a partir dos artefatos salvos | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Igorbraziel/juristcu-clustering-tsdae/blob/main/notebooks/00_overview.ipynb) |
 | [`01_data_corpus`](notebooks/01_data_corpus.ipynb) | Análise exploratória e corpus de frases sem rótulo | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Igorbraziel/juristcu-clustering-tsdae/blob/main/notebooks/01_data_corpus.ipynb) |
 | [`02_embeddings`](notebooks/02_embeddings.ipynb) | Representações R1 a R4 e treinamento do TSDAE | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Igorbraziel/juristcu-clustering-tsdae/blob/main/notebooks/02_embeddings.ipynb) |
-| [`03_clustering`](notebooks/03_clustering.ipynb) | k-means, UMAP e avaliação | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Igorbraziel/juristcu-clustering-tsdae/blob/main/notebooks/03_clustering.ipynb) |
+| [`03_clustering`](notebooks/03_clustering.ipynb) | k-means, silhueta por k, UMAP e HDBSCAN | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Igorbraziel/juristcu-clustering-tsdae/blob/main/notebooks/03_clustering.ipynb) |
+| [`04_evaluation`](notebooks/04_evaluation.ipynb) | Métricas, testes de hipóteses e figuras | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Igorbraziel/juristcu-clustering-tsdae/blob/main/notebooks/04_evaluation.ipynb) |
 
-O protocolo do estudo está em [docs/protocol.md](docs/protocol.md). Ele é congelado antes dos experimentos.
+O protocolo do estudo está em [docs/protocol.md](docs/protocol.md). Ele foi congelado em 16/11/2026, na tag `preregistro`, antes dos experimentos.
 Desvios e decisões de implementação ficam em [docs/decisions.md](docs/decisions.md).
 
 ## 1. Pergunta de pesquisa
@@ -66,12 +67,13 @@ Perguntas específicas:
 
 **Agrupamento e avaliação**
 
+- O ENUNCIADO é limpo por `data.clean_text` (marcação HTML e quebras de linha) antes de todas as representações.
 - k-means com inicialização k-means++ e 10 reinícios; k igual ao número de áreas.
 - Validação externa: NMI (principal) e ARI em relação a AREA.
-- Análise secundária: NMI e ARI em relação a TEMA, só com temas de pelo menos 20 documentos.
+- Análise secundária por TEMA: os temas com ao menos 20 documentos são filtrados antes do k-means. O k é igual ao número de temas mantidos (144).
 - Validação interna: coeficiente de silhueta.
 - P3: k de 5 a 50, com escolha do k de maior silhueta.
-- Incerteza: IC de 95% por bootstrap dos documentos (1.000 reamostragens).
+- Incerteza: IC de 95% por bootstrap pareado dos documentos (1.000 reamostragens). O bootstrap reamostra as atribuições já obtidas e não refaz o k-means.
 - Visualização: projeção UMAP em 2 dimensões, colorida por área.
 - Interpretação: termos característicos de cada grupo (TF-IDF por grupo).
 - Extra opcional: HDBSCAN sobre a projeção UMAP.
@@ -109,11 +111,23 @@ A preencher.
 ### No Colab
 
 1. Abrir o notebook pelo selo da tabela no início deste arquivo.
-2. Executar a célula de configuração. Ela clona o repositório, instala o pacote e monta o Google Drive.
-3. Seguir a ordem 01 → 02 → 03 → 00.
+2. Executar a célula de configuração. Ela clona o repositório, instala o pacote e monta o Google Drive (exceto no 04).
+3. Seguir a ordem 01 → 02 → 03 → 04 → 00.
 4. O notebook 02 exige GPU: Ambiente de execução → Alterar o tipo de ambiente de execução → GPU T4.
 
-Representações e modelos treinados ficam no Google Drive, fora do git.
+Observações:
+
+- O 03 não requer GPU, mas a varredura de k leva várias horas em CPU.
+- O grupo executou o 03 localmente. Ver [docs/decisions.md](docs/decisions.md).
+- As tabelas do 03 ficam versionadas em `results/tables/`. O 04 lê apenas essas tabelas e não precisa do Drive.
+
+Artefatos no Google Drive:
+
+- Representações, modelos treinados e corpus de frases ficam no Drive, fora do git.
+- Esses artefatos estão na pasta `juristcu`, compartilhada entre os integrantes.
+- O código procura a pasta em `/content/drive/MyDrive/juristcu`.
+- Quem não é o dono da pasta deve criar um atalho dela em "Meu Drive" ou definir a variável de ambiente `JURISTCU_ARTIFACTS` com o caminho da pasta.
+- Localmente, o padrão é `./artifacts`. A variável `JURISTCU_ARTIFACTS` também substitui esse caminho.
 
 ### Localmente
 
@@ -140,7 +154,8 @@ juristcu-clustering-tsdae/
 │   ├── protocol.md            protocolo do estudo
 │   └── decisions.md           decisões e desvios
 ├── src/juristcu/              pacote do estudo
-├── notebooks/                 00_overview, 01_data_corpus, 02_embeddings, 03_clustering
+├── notebooks/                 00_overview, 01_data_corpus, 02_embeddings, 03_clustering,
+│                              04_evaluation
 ├── tests/                     testes sem GPU e sem download
 └── results/
     ├── tables/                tabelas finais
