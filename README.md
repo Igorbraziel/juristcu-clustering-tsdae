@@ -80,31 +80,66 @@ Perguntas específicas:
 
 ## 4. Resultados
 
-A preencher após os experimentos.
-
-Tabela principal, em relação a AREA:
+Tabela principal, em relação a AREA (k = 10, 16.045 documentos):
 
 | Representação | NMI [IC 95%] | ARI | Silhueta |
 |---|---|---|---|
-| R1 | — | — | — |
-| R2 | — | — | — |
-| R2-CLS (exploratória) | — | — | — |
-| R3 (média de 3 sementes) | — | — | — |
-| R4 | — | — | — |
+| R1 | 0,340 [0,336; 0,348] | 0,199 | 0,021 |
+| R2 | 0,337 [0,331; 0,345] | 0,241 | 0,031 |
+| R2-CLS (exploratória) | 0,309 [0,304; 0,317] | 0,222 | 0,075 |
+| R3 (média de 3 sementes) | 0,418 [0,412; 0,425] | 0,290 | 0,053 |
+| R4 | 0,247 [0,242; 0,254] | 0,162 | 0,021 |
 
-Plano de análise: [protocolo](docs/protocol.md#9-plano-de-análise).
+Tabela de hipóteses (diferença de NMI, bootstrap pareado com 1.000 reamostragens):
+
+| Comparação | Hipótese | Diferença [IC 95%] | Decisão |
+|---|---|---|---|
+| R3 − R1 | H1 | +0,078 [+0,071; +0,084] | Limite inferior positivo |
+| R4 − R1 | H1 | −0,093 [−0,100; −0,086] | Limite inferior negativo |
+| R3 − R2 | H2 | +0,081 [+0,074; +0,087] | Limite inferior positivo |
+| R3 − R2-CLS | Exploratória | +0,109 [+0,102; +0,115] | Limite inferior positivo |
+
+- **H1 não confirmada:** R3 supera R1, mas R4 fica abaixo de R1.
+- **H2 confirmada:** R3 supera R2. O ganho sobe para +0,109 com o mesmo pooling (R2-CLS).
+- As 3 sementes de R3 ficam entre 0,416 e 0,419 de NMI.
+- Por tema (144 temas), R3 (0,563) e R1 (0,560) ficam próximos e superam R2, R2-CLS e R4.
+- P3: a silhueta sugere k = 5 nas representações do BERTimbau, k = 7 em R4 e o limite de 50 em R1. Nenhuma se aproxima das 10 áreas.
+- A silhueta é baixa em todas as representações (no máximo 0,075).
+- Nos termos característicos de R3, Pessoal se divide em dois grupos quase puros (98% e 97%), e Direito Processual forma um grupo com 89% dos documentos.
+
+Figuras: [projeções UMAP](results/figures/umap_by_area.png) e [silhueta por k](results/figures/silhouette_by_k.png).
+Detalhes, análise por tema e HDBSCAN: notebook [`00_overview`](notebooks/00_overview.ipynb).
+
+Na análise por tema, a NMI tem viés positivo com 144 grupos, e o IC percentil fica acima da estimativa. As decisões sobre H1 e H2, por área, não são afetadas. Ver [decisions.md](docs/decisions.md).
 
 ## 5. Conclusões
 
-A preencher.
-
 Os critérios de interpretação foram definidos antes dos experimentos, no [protocolo](docs/protocol.md#10-interpretação-dos-cenários).
+
+- O treinamento sem rótulos no próprio acervo (TSDAE) agrega valor ao BERTimbau, mesmo com o pooling igualado.
+- Só o modelo adaptado ao acervo supera o TF-IDF com SVD. O modelo geral pronto (R4) fica abaixo dele.
+- R3 supera R4 em 0,171 de NMI. Um modelo pequeno e geral não captura a organização por área do TCU.
+- Nos temas, mais específicos que as áreas, a sobreposição de termos alcança o modelo adaptado.
+- As áreas não formam grupos compactos: a silhueta é baixa e sugere poucos grupos.
+
+Limitações:
+
+- Fixar k em 10 usa informação dos rótulos. A silhueta, sem rótulos, não recupera esse valor.
+- O multilingual-e5-small foi treinado com dados rotulados gerais e é o menor modelo neural do estudo.
+- O TSDAE treinou por cerca de 2.500 passos, menos que no artigo original.
+- Um único domínio e apenas o campo ENUNCIADO.
 
 ## Resumo final
 
 Formato do passo 10 do [exemplo de projeto do Neuromatch Academy](https://deeplearning.neuromatch.io/projects/modelingsteps/Example_Deep_Learning_Project.html).
 
-A preencher.
+O TCU mantém um grande acervo de jurisprudência, e rotular documentos jurídicos por tema é caro.
+Este estudo pergunta quais representações de texto agrupam os 16.045 enunciados do JurisTCU por área sem usar rótulos.
+Foram comparadas quatro representações: TF-IDF com SVD, BERTimbau sem ajuste, BERTimbau treinado com TSDAE no próprio acervo e o multilingual-e5-small.
+Os enunciados foram agrupados com k-means, e os grupos foram comparados às áreas do TCU pela NMI, com IC por bootstrap.
+O BERTimbau com TSDAE obteve a maior NMI (0,418), acima do TF-IDF com SVD (0,340) e do BERTimbau sem ajuste (0,337).
+O multilingual-e5-small ficou abaixo do TF-IDF com SVD (0,247).
+O treinamento sem rótulos no próprio acervo melhora um modelo de linguagem em português, e um modelo geral pronto não substitui essa adaptação no domínio jurídico.
 
 ## Como executar
 
