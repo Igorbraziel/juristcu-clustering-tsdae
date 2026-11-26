@@ -10,8 +10,6 @@ from sklearn.metrics import normalized_mutual_info_score, silhouette_score
 from juristcu import evaluation
 from juristcu.evaluation import ConfidenceInterval
 
-not_implemented = pytest.mark.xfail(raises=NotImplementedError, reason="A implementar.")
-
 
 @pytest.fixture
 def partitions() -> tuple[np.ndarray, np.ndarray]:
@@ -146,7 +144,6 @@ def test_noise_aware_scores_with_only_noise() -> None:
     assert np.isnan(scores["ari"])
 
 
-@not_implemented
 def test_bootstrap_nmi_ci_is_reproducible(partitions: tuple[np.ndarray, np.ndarray]) -> None:
     y_true, y_pred = partitions
     first = evaluation.bootstrap_nmi_ci(y_true, [y_pred], n_resamples=200, seed=3)
@@ -154,14 +151,12 @@ def test_bootstrap_nmi_ci_is_reproducible(partitions: tuple[np.ndarray, np.ndarr
     assert first == second
 
 
-@not_implemented
 def test_bootstrap_nmi_ci_contains_estimate(partitions: tuple[np.ndarray, np.ndarray]) -> None:
     y_true, y_pred = partitions
     interval = evaluation.bootstrap_nmi_ci(y_true, [y_pred], n_resamples=200, seed=3)
     assert interval.low <= interval.estimate <= interval.high
 
 
-@not_implemented
 def test_bootstrap_difference_of_identical_partitions_is_zero(
     partitions: tuple[np.ndarray, np.ndarray],
 ) -> None:
@@ -174,7 +169,6 @@ def test_bootstrap_difference_of_identical_partitions_is_zero(
     assert interval.high == pytest.approx(0.0)
 
 
-@not_implemented
 def test_bootstrap_difference_averages_partitions(
     partitions: tuple[np.ndarray, np.ndarray],
 ) -> None:
@@ -191,7 +185,6 @@ def test_bootstrap_difference_averages_partitions(
     assert interval.low <= interval.estimate <= interval.high
 
 
-@not_implemented
 def test_bootstrap_difference_is_reproducible(
     partitions: tuple[np.ndarray, np.ndarray],
 ) -> None:
@@ -200,3 +193,73 @@ def test_bootstrap_difference_is_reproducible(
     first = evaluation.bootstrap_nmi_difference(*args, n_resamples=200, seed=5)
     second = evaluation.bootstrap_nmi_difference(*args, n_resamples=200, seed=5)
     assert first == second
+
+
+def test_bootstrap_nmi_ci_estimate_is_mean_nmi(
+    partitions: tuple[np.ndarray, np.ndarray],
+) -> None:
+    y_true, y_pred = partitions
+    interval = evaluation.bootstrap_nmi_ci(y_true, [y_true, y_pred], n_resamples=50, seed=3)
+    nmi_pred = evaluation.external_scores(y_true, y_pred)["nmi"]
+    assert interval.estimate == pytest.approx((1.0 + nmi_pred) / 2)
+
+
+def test_bootstrap_nmi_ci_does_not_depend_on_label_names(
+    partitions: tuple[np.ndarray, np.ndarray],
+) -> None:
+    y_true, y_pred = partitions
+    names = np.array(["Licitação", "Pessoal", "Contrato", "Convênio"])
+    numeric = evaluation.bootstrap_nmi_ci(y_true, [y_pred], n_resamples=100, seed=3)
+    text = evaluation.bootstrap_nmi_ci(names[y_true], [y_pred], n_resamples=100, seed=3)
+    # A ordem dos rótulos muda só o arredondamento das somas.
+    assert dataclasses.astuple(numeric) == pytest.approx(dataclasses.astuple(text))
+
+
+def test_bootstrap_nmi_ci_accepts_missing_labels() -> None:
+    y_true = np.array(["a", "a", None, None, "b", "b"], dtype=object)
+    interval = evaluation.bootstrap_nmi_ci(y_true, [np.array([0, 0, 1, 1, 2, 2])], n_resamples=20)
+    assert interval.estimate == pytest.approx(1.0)
+
+
+def test_bootstrap_nmi_ci_rejects_empty_preds(partitions: tuple[np.ndarray, np.ndarray]) -> None:
+    y_true, _ = partitions
+    with pytest.raises(ValueError, match="vazio"):
+        evaluation.bootstrap_nmi_ci(y_true, [])
+
+
+def test_bootstrap_nmi_ci_rejects_size_mismatch(
+    partitions: tuple[np.ndarray, np.ndarray],
+) -> None:
+    y_true, y_pred = partitions
+    with pytest.raises(ValueError, match="documentos"):
+        evaluation.bootstrap_nmi_ci(y_true, [y_pred[:-1]])
+
+
+def test_bootstrap_uses_same_nmi_as_external_scores(
+    partitions: tuple[np.ndarray, np.ndarray],
+) -> None:
+    # A estimativa pontual do bootstrap coincide com a NMI de external_scores.
+    y_true, y_pred = partitions
+    interval = evaluation.bootstrap_nmi_ci(y_true, [y_pred], n_resamples=10, seed=0)
+    assert interval.estimate == pytest.approx(evaluation.external_scores(y_true, y_pred)["nmi"])
+
+
+def test_bootstrap_difference_has_positive_bound_for_better_partition(
+    partitions: tuple[np.ndarray, np.ndarray],
+) -> None:
+    # Os rótulos verdadeiros superam um agrupamento ruidoso em toda reamostragem.
+    y_true, y_pred = partitions
+    interval = evaluation.bootstrap_nmi_difference(
+        y_true, [y_true], [y_pred], n_resamples=200, seed=5
+    )
+    assert interval.low > 0
+
+
+@pytest.mark.parametrize("empty_side", ["a", "b"])
+def test_bootstrap_difference_rejects_empty_side(
+    partitions: tuple[np.ndarray, np.ndarray], empty_side: str
+) -> None:
+    y_true, y_pred = partitions
+    preds_a, preds_b = ([], [y_pred]) if empty_side == "a" else ([y_pred], [])
+    with pytest.raises(ValueError, match=f"preds_{empty_side}"):
+        evaluation.bootstrap_nmi_difference(y_true, preds_a, preds_b)
