@@ -2,12 +2,12 @@
 
 - Rótulos (AREA e TEMA) entram apenas na avaliação, nunca no treinamento.
 - NMI calculada com a normalização de config.NMI_AVERAGE_METHOD em todas as funções.
-- Esqueleto: as funções de bootstrap levantam NotImplementedError até serem implementadas.
+- O bootstrap reamostra documentos e não refaz o agrupamento.
 """
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 
 import numpy as np
@@ -159,13 +159,21 @@ def bootstrap_nmi_ci(
         NMI média com todos os documentos e limites do intervalo.
 
     Raises:
-        ValueError: Se preds estiver vazio.
+        ValueError: Se preds estiver vazio ou se algum agrupamento tiver tamanho diferente de
+            y_true.
 
     Note:
         - O bootstrap reamostra as atribuições já obtidas. O k-means não é refeito.
         - NMI calculada como em external_scores.
     """
-    raise NotImplementedError
+    truth, encoded = _encode(y_true, preds, "preds")
+    return _bootstrap(
+        lambda idx: _mean_nmi(truth, encoded, idx),
+        n_documents=len(truth),
+        n_resamples=n_resamples,
+        seed=seed,
+        level=level,
+    )
 
 
 def bootstrap_nmi_difference(
@@ -194,11 +202,82 @@ def bootstrap_nmi_difference(
         Diferença com todos os documentos e limites do intervalo.
 
     Raises:
-        ValueError: Se preds_a ou preds_b estiver vazio.
+        ValueError: Se preds_a ou preds_b estiver vazio ou se algum agrupamento tiver tamanho
+            diferente de y_true.
 
     Note:
         - Bootstrap pareado: os mesmos índices sorteados valem para todos os agrupamentos.
         - H1 e H2 se confirmam quando o limite inferior é positivo.
         - NMI calculada como em external_scores.
     """
-    raise NotImplementedError
+    truth, encoded_a = _encode(y_true, preds_a, "preds_a")
+    _, encoded_b = _encode(y_true, preds_b, "preds_b")
+    return _bootstrap(
+        lambda idx: _mean_nmi(truth, encoded_a, idx) - _mean_nmi(truth, encoded_b, idx),
+        n_documents=len(truth),
+        n_resamples=n_resamples,
+        seed=seed,
+        level=level,
+    )
+
+
+def _encode(
+    y_true: np.ndarray, preds: Sequence[np.ndarray], name: str
+) -> tuple[np.ndarray, list[np.ndarray]]:
+    """Converte rótulos e grupos em inteiros e confere os tamanhos.
+
+    A NMI não depende dos nomes dos rótulos. Inteiros aceleram as reamostragens.
+
+    Raises:
+        ValueError: Se preds estiver vazio ou se algum agrupamento tiver tamanho diferente de
+            y_true.
+    """
+    if len(preds) == 0:
+        raise ValueError(f"{name} está vazio. Passar ao menos um agrupamento.")
+    truth = _to_codes(y_true)
+    encoded = [_to_codes(pred) for pred in preds]
+    for pred in encoded:
+        if len(pred) != len(truth):
+            raise ValueError(
+                f"{name} tem um agrupamento com {len(pred)} documentos; esperados {len(truth)}."
+            )
+    return truth, encoded
+
+
+def _to_codes(labels: np.ndarray) -> np.ndarray:
+    """Substitui cada rótulo pelo seu índice entre os rótulos distintos.
+
+    Rótulos ausentes (None ou NaN) formam um único código, sem erro de comparação.
+    """
+    codes, _ = pd.factorize(np.asarray(labels, dtype=object).ravel(), use_na_sentinel=False)
+    return codes
+
+
+def _mean_nmi(truth: np.ndarray, preds: Sequence[np.ndarray], idx: np.ndarray) -> float:
+    """Calcula a média da NMI dos agrupamentos nos documentos indicados por idx."""
+    scores = [
+        normalized_mutual_info_score(truth[idx], pred[idx], average_method=NMI_AVERAGE_METHOD)
+        for pred in preds
+    ]
+    return float(np.mean(scores))
+
+
+def _bootstrap(
+    statistic: Callable[[np.ndarray], float],
+    n_documents: int,
+    n_resamples: int,
+    seed: int,
+    level: float,
+) -> ConfidenceInterval:
+    """Aplica a estatística a todos os documentos e a cada reamostragem.
+
+    O gerador é criado aqui, com a semente recebida. Chamadas com a mesma semente sorteiam os
+    mesmos índices, o que mantém o pareamento entre representações.
+    """
+    estimate = statistic(np.arange(n_documents))
+    rng = np.random.default_rng(seed)
+    resampled = np.array(
+        [statistic(rng.integers(0, n_documents, size=n_documents)) for _ in range(n_resamples)]
+    )
+    low, high = np.quantile(resampled, [(1 - level) / 2, (1 + level) / 2])
+    return ConfidenceInterval(estimate=estimate, low=float(low), high=float(high))
